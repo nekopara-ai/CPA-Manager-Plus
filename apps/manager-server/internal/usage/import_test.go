@@ -214,6 +214,126 @@ func TestParseImportPayloadPreservesExportedEventHash(t *testing.T) {
 	}
 }
 
+func TestParseImportPayloadPreservesCanonicalTierForExportedCodexEvent(t *testing.T) {
+	payload := `{
+	  "event_hash": "stable-tier-hash",
+	  "timestamp_ms": 1760000000000,
+	  "timestamp": "2025-10-09T08:53:20Z",
+	  "model": "gpt-5.6-sol",
+	  "executor_type": "codex",
+	  "service_tier": "priority",
+	  "request_service_tier": "auto",
+	  "response_service_tier": "default",
+	  "input_tokens": 1,
+	  "total_tokens": 1
+	}`
+
+	result, err := ParseImportPayload([]byte(payload))
+	if err != nil {
+		t.Fatalf("parse exported event: %v", err)
+	}
+	if len(result.Events) != 1 {
+		t.Fatalf("result = %#v", result)
+	}
+	event := result.Events[0]
+	if event.ServiceTier != "priority" || event.RequestServiceTier != "auto" ||
+		event.ResponseServiceTier != "default" {
+		t.Fatalf(
+			"service tiers = billing:%q request:%q response:%q",
+			event.ServiceTier,
+			event.RequestServiceTier,
+			event.ResponseServiceTier,
+		)
+	}
+}
+
+func TestParseImportPayloadUsesEffectiveTierForLegacyCodexDetail(t *testing.T) {
+	payload := `{
+	  "apis": {
+	    "POST /v1/responses": {
+	      "models": {
+	        "gpt-5.6-sol": {
+	          "details": [{
+	            "timestamp": "2026-07-10T00:00:00Z",
+	            "executor_type": "codex",
+	            "service_tier": "auto",
+	            "effective_service_tier": "priority",
+	            "response_service_tier": "default",
+	            "tokens": {"input_tokens": 1, "total_tokens": 1}
+	          }]
+	        }
+	      }
+	    }
+	  }
+	}`
+
+	result, err := ParseImportPayload([]byte(payload))
+	if err != nil {
+		t.Fatalf("parse legacy payload: %v", err)
+	}
+	if len(result.Events) != 1 {
+		t.Fatalf("result = %#v", result)
+	}
+	event := result.Events[0]
+	if event.ServiceTier != "priority" || event.RequestServiceTier != "" ||
+		event.EffectiveServiceTier != "priority" || event.ResponseServiceTier != "default" {
+		t.Fatalf(
+			"service tiers = billing:%q request:%q effective:%q response:%q",
+			event.ServiceTier,
+			event.RequestServiceTier,
+			event.EffectiveServiceTier,
+			event.ResponseServiceTier,
+		)
+	}
+}
+
+func TestLegacyImportDistinguishesCanonicalExportFromDirectCPAPayload(t *testing.T) {
+	detail := `{
+	  "timestamp": "2026-07-10T00:00:00Z",
+	  "executor_type": "codex",
+	  "service_tier": "priority",
+	  "request_service_tier": "auto",
+	  "response_service_tier": "default",
+	  "tokens": {"input_tokens": 1, "total_tokens": 1}
+	}`
+	direct := `{"apis":{"POST /v1/responses":{"models":{"gpt-5.6-sol":{"details":[` + detail + `]}}}}}`
+	wrapped := `{"usage":` + direct + `}`
+
+	for _, test := range []struct {
+		name       string
+		payload    string
+		wantFormat string
+		wantTier   string
+	}{
+		{name: "wrapped CPAMP export", payload: wrapped, wantFormat: ImportFormatLegacyExport, wantTier: "priority"},
+		{name: "direct CPA payload", payload: direct, wantFormat: ImportFormatLegacyPayload, wantTier: "auto"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			parsed, err := ParseImportPayload([]byte(test.payload))
+			if err != nil {
+				t.Fatalf("parse payload: %v", err)
+			}
+			if parsed.Format != test.wantFormat || len(parsed.Events) != 1 ||
+				parsed.Events[0].ServiceTier != test.wantTier {
+				t.Fatalf("parsed result = %#v", parsed)
+			}
+
+			var streamedEvents []Event
+			streamed, err := StreamImportPayload(bytes.NewReader([]byte(test.payload)), 1, func(events []Event) error {
+				streamedEvents = append(streamedEvents, events...)
+				return nil
+			})
+			if err != nil {
+				t.Fatalf("stream payload: %v", err)
+			}
+			if streamed.Format != test.wantFormat || len(streamedEvents) != 1 ||
+				streamedEvents[0].ServiceTier != test.wantTier {
+				t.Fatalf("streamed result = %#v events = %#v", streamed, streamedEvents)
+			}
+		})
+	}
+}
+
 func TestParseImportPayloadJSONLCountsBadLines(t *testing.T) {
 	payload := `{"timestamp":"2026-01-02T03:04:05Z","model":"gpt-4o","endpoint":"GET /v1/models","tokens":{"input_tokens":1}}
 not-json`
@@ -743,6 +863,54 @@ func TestNormalizeRawPrefersRequestServiceTierForCodex(t *testing.T) {
 	}
 }
 
+func TestNormalizeRawPrefersReportedEffectiveServiceTier(t *testing.T) {
+	payload := `{
+	  "timestamp": "2026-07-10T00:00:00Z",
+	  "provider": "openai",
+	  "executor_type": "codex",
+	  "model": "gpt-5.6-sol",
+	  "service_tier": "auto",
+	  "effective_service_tier": "priority",
+	  "response_service_tier": "default",
+	  "tokens": {"input_tokens": 1, "total_tokens": 1}
+	}`
+
+	event, err := NormalizeRaw([]byte(payload))
+	if err != nil {
+		t.Fatalf("normalize raw: %v", err)
+	}
+	if event.RequestServiceTier != "auto" || event.EffectiveServiceTier != "priority" ||
+		event.ResponseServiceTier != "default" || event.ServiceTier != "priority" {
+		t.Fatalf(
+			"service tiers = request:%q effective:%q response:%q billing:%q",
+			event.RequestServiceTier,
+			event.EffectiveServiceTier,
+			event.ResponseServiceTier,
+			event.ServiceTier,
+		)
+	}
+}
+
+func TestNormalizeRawEmptyEffectiveServiceTierUsesLegacyFallback(t *testing.T) {
+	payload := `{
+	  "timestamp": "2026-07-10T00:00:00Z",
+	  "executor_type": "codex",
+	  "model": "gpt-5.6-sol",
+	  "service_tier": "auto",
+	  "effective_service_tier": "   ",
+	  "response_service_tier": "default",
+	  "tokens": {"input_tokens": 1, "total_tokens": 1}
+	}`
+
+	event, err := NormalizeRaw([]byte(payload))
+	if err != nil {
+		t.Fatalf("normalize raw: %v", err)
+	}
+	if event.EffectiveServiceTier != "" || event.ServiceTier != "auto" {
+		t.Fatalf("effective/billing service tiers = %q/%q, want empty/auto", event.EffectiveServiceTier, event.ServiceTier)
+	}
+}
+
 func TestNormalizeRawPrefersResponseServiceTierForNonCodex(t *testing.T) {
 	payload := `{
 	  "timestamp": "2026-07-10T00:00:00Z",
@@ -759,6 +927,26 @@ func TestNormalizeRawPrefersResponseServiceTierForNonCodex(t *testing.T) {
 	}
 	if event.RequestServiceTier != "priority" || event.ResponseServiceTier != "default" || event.ServiceTier != "default" {
 		t.Fatalf("service tiers = %q/%q/%q", event.RequestServiceTier, event.ResponseServiceTier, event.ServiceTier)
+	}
+}
+
+func TestNormalizeRawKeepsResponseTierForNonCodexWithEffectiveRequestTier(t *testing.T) {
+	payload := `{
+	  "timestamp": "2026-07-10T00:00:00Z",
+	  "provider": "openai-compatible",
+	  "model": "gpt-5.4",
+	  "request_service_tier": "priority",
+	  "effective_service_tier": "priority",
+	  "response_service_tier": "default",
+	  "tokens": {"input_tokens": 1, "total_tokens": 1}
+	}`
+
+	event, err := NormalizeRaw([]byte(payload))
+	if err != nil {
+		t.Fatalf("normalize raw: %v", err)
+	}
+	if event.EffectiveServiceTier != "priority" || event.ServiceTier != "default" {
+		t.Fatalf("effective/billing service tiers = %q/%q, want priority/default", event.EffectiveServiceTier, event.ServiceTier)
 	}
 }
 

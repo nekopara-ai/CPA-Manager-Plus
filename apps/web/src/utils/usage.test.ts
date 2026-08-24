@@ -142,6 +142,44 @@ describe('normalizeAnalyticsModel', () => {
 });
 
 describe('usage detail collection', () => {
+  it('preserves CPA effective service tier in normalized detail variants', () => {
+    const usageData = {
+      apis: {
+        'POST /v1/responses': {
+          models: {
+            'gpt-5.4': {
+              details: [
+                {
+                  timestamp: '2026-07-20T00:00:00Z',
+                  source: 'codex-account',
+                  auth_index: 'auth-1',
+                  executor_type: 'codex',
+                  service_tier: 'auto',
+                  effective_service_tier: 'priority',
+                  response_service_tier: 'default',
+                  tokens: { input_tokens: 100_000 },
+                  failed: false,
+                },
+              ],
+            },
+          },
+        },
+      },
+    };
+
+    for (const detail of [
+      collectUsageDetails(usageData)[0],
+      collectUsageDetailsWithEndpoint(usageData)[0],
+    ]) {
+      expect(detail.effective_service_tier).toBe('priority');
+      expect(
+        calculateCost(detail, {
+          'gpt-5.4': { prompt: 2.5, completion: 5, cache: 1 },
+        })
+      ).toBeCloseTo(0.5);
+    }
+  });
+
   it('preserves Codex identity from legacy auth type metadata', () => {
     const usageData = {
       apis: {
@@ -854,6 +892,37 @@ describe('calculateCost model price preference', () => {
     expect(cost).toBeCloseTo(0.5);
   });
 
+  it('uses CPAMP canonical service tier before the original Codex request tier', () => {
+    const cost = calculateCost(
+      {
+        tokens: { input_tokens: 100_000 },
+        __modelName: 'gpt-5.4',
+        executor_type: 'codex',
+        service_tier: 'priority',
+        request_service_tier: 'auto',
+        response_service_tier: 'default',
+      },
+      { 'gpt-5.4': { prompt: 2.5, completion: 5, cache: 1 } }
+    );
+    expect(cost).toBeCloseTo(0.5);
+  });
+
+  it('uses CPA translated effective tier before legacy Codex tier fields', () => {
+    const cost = calculateCost(
+      {
+        tokens: { input_tokens: 100_000 },
+        __modelName: 'gpt-5.4',
+        executor_type: 'codex',
+        service_tier: 'auto',
+        request_service_tier: 'auto',
+        effective_service_tier: 'priority',
+        response_service_tier: 'default',
+      },
+      { 'gpt-5.4': { prompt: 2.5, completion: 5, cache: 1 } }
+    );
+    expect(cost).toBeCloseTo(0.5);
+  });
+
   it('recognizes Codex OAuth from auth type metadata', () => {
     const cost = calculateCost(
       {
@@ -874,6 +943,7 @@ describe('calculateCost model price preference', () => {
         tokens: { input_tokens: 100_000 },
         __modelName: 'gpt-5.4',
         provider: 'openai-compatible',
+        service_tier: 'priority',
         request_service_tier: 'priority',
         response_service_tier: 'default',
       },

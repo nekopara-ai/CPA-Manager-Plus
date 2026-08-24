@@ -280,6 +280,21 @@ describe('RealtimeEventsPanel', () => {
     expect(markup).toContain('rate limit exceeded');
   });
 
+  it('shows the canonical tier before the original Codex request tier', () => {
+    const markup = renderPanel(
+      baseRow({
+        executorType: 'codex',
+        serviceTier: 'priority',
+        requestServiceTier: 'auto',
+        responseServiceTier: 'default',
+      })
+    );
+
+    expect(markup).toContain('>Service</span><span class=');
+    expect(markup).toContain('>priority</span>');
+    expect(markup).not.toContain('>auto</span>');
+  });
+
   it('renders structured xAI free-usage exhaustion evidence', () => {
     const markup = renderPanel(
       baseRow({

@@ -104,6 +104,31 @@ describe('buildEventRows', () => {
     expect(row.searchText).toContain('medium');
   });
 
+  it('uses the canonical effective tier instead of the original Codex request tier', () => {
+    const [row] = buildRows({
+      executor_type: 'codex',
+      service_tier: 'priority',
+      request_service_tier: 'auto',
+      response_service_tier: 'default',
+    });
+
+    expect(row.serviceTier).toBe('priority');
+    expect(row.requestServiceTier).toBe('auto');
+    expect(row.responseServiceTier).toBe('default');
+  });
+
+  it('uses CPA translated effective tier for direct compatible usage data', () => {
+    const [row] = buildRows({
+      executor_type: 'codex',
+      service_tier: 'auto',
+      request_service_tier: 'auto',
+      effective_service_tier: 'priority',
+      response_service_tier: 'default',
+    });
+
+    expect(row.serviceTier).toBe('priority');
+  });
+
   it('uses the analytics model as primary identity while keeping requested and resolved models searchable', () => {
     const [row] = buildRows({
       __modelName: 'deepseek-v4-flash',

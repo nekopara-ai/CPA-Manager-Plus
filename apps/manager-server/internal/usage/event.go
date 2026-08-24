@@ -51,14 +51,18 @@ type Event struct {
 	ServiceTier         string `json:"service_tier,omitempty"`
 	RequestServiceTier  string `json:"request_service_tier,omitempty"`
 	ResponseServiceTier string `json:"response_service_tier,omitempty"`
-	CacheInputMode      string `json:"cache_input_mode,omitempty"`
-	InputTokens         int64  `json:"input_tokens"`
-	OutputTokens        int64  `json:"output_tokens"`
-	ReasoningTokens     int64  `json:"reasoning_tokens"`
-	CachedTokens        int64  `json:"cached_tokens"`
-	CacheTokens         int64  `json:"cache_tokens"`
-	CacheReadTokens     int64  `json:"cache_read_tokens"`
-	CacheCreationTokens int64  `json:"cache_creation_tokens"`
+	// EffectiveServiceTier is the final tier reported by CPA after translation
+	// and payload overrides. It is transient because ServiceTier is the
+	// canonical billing value persisted in the existing database column.
+	EffectiveServiceTier string `json:"-"`
+	CacheInputMode       string `json:"cache_input_mode,omitempty"`
+	InputTokens          int64  `json:"input_tokens"`
+	OutputTokens         int64  `json:"output_tokens"`
+	ReasoningTokens      int64  `json:"reasoning_tokens"`
+	CachedTokens         int64  `json:"cached_tokens"`
+	CacheTokens          int64  `json:"cache_tokens"`
+	CacheReadTokens      int64  `json:"cache_read_tokens"`
+	CacheCreationTokens  int64  `json:"cache_creation_tokens"`
 	// Normalized token buckets are persisted for aggregation and billing but are
 	// not exposed in compatible usage payloads.
 	NormalizedUncachedInputTokens int64  `json:"-"`
@@ -204,13 +208,7 @@ type CacheInputContext struct {
 // Codex reports default/auto even when Fast Mode was requested, so Codex uses
 // the request tier. Other providers retain response-tier precedence.
 func EffectiveServiceTier(context CacheInputContext, requestTier, legacyTier, responseTier string) string {
-	identity := strings.ToLower(strings.Join([]string{
-		context.ExecutorType,
-		context.Provider,
-		context.ProviderSnapshot,
-		context.AuthType,
-	}, " "))
-	if strings.Contains(identity, "codex") {
+	if isCodexUsageContext(context) {
 		if requestTier != "" {
 			return requestTier
 		}
@@ -226,6 +224,27 @@ func EffectiveServiceTier(context CacheInputContext, requestTier, legacyTier, re
 		return legacyTier
 	}
 	return requestTier
+}
+
+func isCodexUsageContext(context CacheInputContext) bool {
+	identity := strings.ToLower(strings.Join([]string{
+		context.ExecutorType,
+		context.Provider,
+		context.ProviderSnapshot,
+		context.AuthType,
+	}, " "))
+	return strings.Contains(identity, "codex")
+}
+
+// ResolveEffectiveServiceTier prefers CPA's explicit final outbound tier for
+// Codex, whose upstream response tier is not reliable for Fast Mode billing.
+// Other providers and old CPA payloads retain the existing provider-aware
+// request/response fallback behavior.
+func ResolveEffectiveServiceTier(context CacheInputContext, reportedEffectiveTier, requestTier, legacyTier, responseTier string) string {
+	if tier := strings.TrimSpace(reportedEffectiveTier); tier != "" && isCodexUsageContext(context) {
+		return tier
+	}
+	return EffectiveServiceTier(context, requestTier, legacyTier, responseTier)
 }
 
 type RawCacheAccountingHints struct {
@@ -556,6 +575,7 @@ func NormalizeRaw(raw []byte) (Event, error) {
 	xForwardedFor := readString(record, "x_forwarded_for", "xForwardedFor")
 	userAgent := readString(record, "user_agent", "userAgent")
 	requestServiceTier := readString(record, "request_service_tier", "requestServiceTier", "service_tier", "serviceTier")
+	effectiveServiceTier := readString(record, "effective_service_tier", "effectiveServiceTier")
 	responseServiceTier := readString(record, "response_service_tier", "responseServiceTier")
 	authProviderSnapshot := readString(record, "auth_provider_snapshot", "authProviderSnapshot")
 	usageContext := CacheInputContext{
@@ -568,7 +588,7 @@ func NormalizeRaw(raw []byte) (Event, error) {
 		RequestedModel:   requestedModel,
 		DisplayModel:     model,
 	}
-	serviceTier := EffectiveServiceTier(usageContext, requestServiceTier, "", responseServiceTier)
+	serviceTier := ResolveEffectiveServiceTier(usageContext, effectiveServiceTier, requestServiceTier, "", responseServiceTier)
 	cacheAccounting := NormalizeCacheAccounting(usageContext, inputTokens, cachedTokens, cacheTokens, cacheReadTokens, cacheCreationTokens)
 	if totalTokens <= 0 {
 		totalTokens = cacheAccounting.TotalInputTokens + maxInt64(outputTokens, 0) + maxInt64(reasoningTokens, 0)
@@ -605,6 +625,7 @@ func NormalizeRaw(raw []byte) (Event, error) {
 		ServiceTier:                   serviceTier,
 		RequestServiceTier:            requestServiceTier,
 		ResponseServiceTier:           responseServiceTier,
+		EffectiveServiceTier:          effectiveServiceTier,
 		CacheInputMode:                cacheAccounting.Mode,
 		InputTokens:                   inputTokens,
 		OutputTokens:                  outputTokens,

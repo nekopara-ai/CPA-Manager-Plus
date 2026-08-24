@@ -1109,10 +1109,10 @@ export function RealtimeEventsPanel({
               const requestServiceTier = formatOptionalText(row.requestServiceTier);
               const responseServiceTier = formatOptionalText(row.responseServiceTier);
               const effectiveServiceTier =
-                requestServiceTier !== '-'
-                  ? requestServiceTier
-                  : serviceTier !== '-'
-                    ? serviceTier
+                serviceTier !== '-'
+                  ? serviceTier
+                  : requestServiceTier !== '-'
+                    ? requestServiceTier
                     : responseServiceTier;
               const requestDiagnosticDetails = buildRequestDiagnosticDetails(row, t, locale);
               const requestDiagnosticTooltipId = requestDiagnosticDetails

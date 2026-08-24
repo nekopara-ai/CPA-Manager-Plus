@@ -3,6 +3,7 @@ import { buildSourceInfoMap, resolveSourceDisplay } from '@/utils/sourceResolver
 import {
   calculateCost,
   normalizeAuthIndex,
+  resolveBillingServiceTier,
   type ModelPrice,
   type UsageDetailWithEndpoint,
 } from '@/utils/usage';
@@ -139,10 +140,7 @@ export const buildEventRows = (
       const responseServiceTier = readString(
         detail.response_service_tier ?? detail.responseServiceTier
       );
-      const serviceTier =
-        requestServiceTier ||
-        readString(detail.service_tier ?? detail.serviceTier) ||
-        responseServiceTier;
+      const serviceTier = readString(resolveBillingServiceTier(detail));
       const executorType = readString(detail.executor_type ?? detail.executorType);
       const failStatusCodeRaw = detail.fail_status_code ?? detail.failStatusCode;
       const failStatusCode =

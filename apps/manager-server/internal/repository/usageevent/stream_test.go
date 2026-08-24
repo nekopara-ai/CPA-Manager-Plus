@@ -513,11 +513,17 @@ func TestInsertBatchSelectsServiceTierByProviderSemantics(t *testing.T) {
 	nonCodex.RequestServiceTier = "priority"
 	nonCodex.ResponseServiceTier = "default"
 	nonCodex.ServiceTier = "priority"
+	overriddenCodex := streamTestEvent("codex-effective-tier", 300, "POST /v1/responses", "gpt-5.4")
+	overriddenCodex.ExecutorType = "codex"
+	overriddenCodex.RequestServiceTier = "auto"
+	overriddenCodex.EffectiveServiceTier = "priority"
+	overriddenCodex.ResponseServiceTier = "default"
+	overriddenCodex.ServiceTier = "priority"
 
-	if _, err := repo.InsertBatch(context.Background(), []usage.Event{codex, nonCodex}); err != nil {
+	if _, err := repo.InsertBatch(context.Background(), []usage.Event{codex, nonCodex, overriddenCodex}); err != nil {
 		t.Fatalf("insert events: %v", err)
 	}
-	recent, err := repo.ListRecent(context.Background(), 2)
+	recent, err := repo.ListRecent(context.Background(), 3)
 	if err != nil {
 		t.Fatalf("list recent: %v", err)
 	}
@@ -530,6 +536,9 @@ func TestInsertBatchSelectsServiceTierByProviderSemantics(t *testing.T) {
 	}
 	if event := byHash["openai-tier"]; event.ServiceTier != "default" || event.RequestServiceTier != "priority" || event.ResponseServiceTier != "default" {
 		t.Fatalf("non-Codex tiers = %q/%q/%q", event.ServiceTier, event.RequestServiceTier, event.ResponseServiceTier)
+	}
+	if event := byHash["codex-effective-tier"]; event.ServiceTier != "priority" || event.RequestServiceTier != "auto" || event.ResponseServiceTier != "default" {
+		t.Fatalf("overridden Codex tiers = %q/%q/%q", event.ServiceTier, event.RequestServiceTier, event.ResponseServiceTier)
 	}
 }
 

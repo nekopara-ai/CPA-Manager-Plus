@@ -172,12 +172,12 @@ func (r *repository) InsertBatch(ctx context.Context, events []model.UsageEvent)
 		if event.RequestServiceTier == "" {
 			event.RequestServiceTier = event.ServiceTier
 		}
-		event.ServiceTier = usage.EffectiveServiceTier(usage.CacheInputContext{
+		event.ServiceTier = usage.ResolveEffectiveServiceTier(usage.CacheInputContext{
 			ExecutorType:     event.ExecutorType,
 			Provider:         event.Provider,
 			ProviderSnapshot: event.AuthProviderSnapshot,
 			AuthType:         event.AuthType,
-		}, event.RequestServiceTier, event.ServiceTier, event.ResponseServiceTier)
+		}, event.EffectiveServiceTier, event.RequestServiceTier, event.ServiceTier, event.ResponseServiceTier)
 		failed := 0
 		if event.Failed {
 			failed = 1

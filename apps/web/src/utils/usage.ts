@@ -206,6 +206,8 @@ export interface UsageDetail {
   serviceTier?: string;
   request_service_tier?: string;
   requestServiceTier?: string;
+  effective_service_tier?: string;
+  effectiveServiceTier?: string;
   response_service_tier?: string;
   responseServiceTier?: string;
   cache_input_mode?: CacheInputMode | string;
@@ -912,6 +914,9 @@ export function collectUsageDetails(usageData: unknown): UsageDetail[] {
           request_service_tier: readDetailString(
             detailRaw.request_service_tier ?? detailRaw.requestServiceTier
           ),
+          effective_service_tier: readDetailString(
+            detailRaw.effective_service_tier ?? detailRaw.effectiveServiceTier
+          ),
           response_service_tier: readDetailString(
             detailRaw.response_service_tier ?? detailRaw.responseServiceTier
           ),
@@ -1042,6 +1047,9 @@ export function collectUsageDetailsWithEndpoint(usageData: unknown): UsageDetail
           request_service_tier: readDetailString(
             detailRaw.request_service_tier ?? detailRaw.requestServiceTier
           ),
+          effective_service_tier: readDetailString(
+            detailRaw.effective_service_tier ?? detailRaw.effectiveServiceTier
+          ),
           response_service_tier: readDetailString(
             detailRaw.response_service_tier ?? detailRaw.responseServiceTier
           ),
@@ -1126,6 +1134,68 @@ export function extractTotalTokens(detail: unknown): number {
   );
 }
 
+type ServiceTierDetail = Pick<
+  UsageDetail,
+  | 'service_tier'
+  | 'serviceTier'
+  | 'request_service_tier'
+  | 'requestServiceTier'
+  | 'effective_service_tier'
+  | 'effectiveServiceTier'
+  | 'response_service_tier'
+  | 'responseServiceTier'
+  | 'executor_type'
+  | 'executorType'
+  | 'provider'
+  | 'auth_provider_snapshot'
+  | 'authProviderSnapshot'
+  | 'auth_type'
+  | 'authType'
+>;
+
+const firstServiceTier = (...values: Array<string | null | undefined>) =>
+  values.find((value) => typeof value === 'string' && value.trim())?.trim();
+
+// CPA reports the Codex client request, final translated outbound request, and
+// upstream response as separate tiers. The translated value is authoritative
+// for Fast Mode; CPAMP's persisted service_tier is its canonical fallback.
+export function resolveBillingServiceTier(detail: ServiceTierDetail): string | undefined {
+  const identity = [
+    detail.executor_type,
+    detail.executorType,
+    detail.provider,
+    detail.auth_provider_snapshot,
+    detail.authProviderSnapshot,
+    detail.auth_type,
+    detail.authType,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+
+  if (identity.includes('codex')) {
+    return firstServiceTier(
+      detail.effective_service_tier,
+      detail.effectiveServiceTier,
+      detail.service_tier,
+      detail.serviceTier,
+      detail.request_service_tier,
+      detail.requestServiceTier,
+      detail.response_service_tier,
+      detail.responseServiceTier
+    );
+  }
+
+  return firstServiceTier(
+    detail.response_service_tier,
+    detail.responseServiceTier,
+    detail.service_tier,
+    detail.serviceTier,
+    detail.request_service_tier,
+    detail.requestServiceTier
+  );
+}
+
 export function calculateCost(
   detail: Pick<
     UsageDetail,
@@ -1137,6 +1207,8 @@ export function calculateCost(
     | 'serviceTier'
     | 'request_service_tier'
     | 'requestServiceTier'
+    | 'effective_service_tier'
+    | 'effectiveServiceTier'
     | 'response_service_tier'
     | 'responseServiceTier'
     | 'executor_type'
@@ -1178,31 +1250,7 @@ export function calculateCost(
     : officialCandidatePrice;
   if (!basePrice) return 0;
 
-  const identity = [
-    detail.executor_type,
-    detail.executorType,
-    detail.provider,
-    detail.auth_provider_snapshot,
-    detail.authProviderSnapshot,
-    detail.auth_type,
-    detail.authType,
-  ]
-    .filter(Boolean)
-    .join(' ')
-    .toLowerCase();
-  const serviceTier = identity.includes('codex')
-    ? detail.request_service_tier ||
-      detail.requestServiceTier ||
-      detail.service_tier ||
-      detail.serviceTier ||
-      detail.response_service_tier ||
-      detail.responseServiceTier
-    : detail.response_service_tier ||
-      detail.responseServiceTier ||
-      detail.service_tier ||
-      detail.serviceTier ||
-      detail.request_service_tier ||
-      detail.requestServiceTier;
+  const serviceTier = resolveBillingServiceTier(detail);
 
   const inputTokens = Math.max(toFiniteNumber(detail.tokens.input_tokens), 0);
   const completionTokens = Math.max(toFiniteNumber(detail.tokens.output_tokens), 0);

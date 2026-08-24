@@ -567,6 +567,7 @@ func streamLegacyAPIsValue(
 			endpoint,
 			shape.endpointRanks[endpoint],
 			shape.modelRanks[endpoint],
+			shape.format == ImportFormatLegacyExport,
 			batcher,
 			result,
 			nowMS,
@@ -585,6 +586,7 @@ func streamLegacyEndpointValue(
 	endpoint string,
 	endpointIndex int,
 	modelRanks map[string]int,
+	canonicalServiceTier bool,
 	batcher *importBatcher,
 	result *ImportStreamResult,
 	nowMS int64,
@@ -611,6 +613,7 @@ func streamLegacyEndpointValue(
 				endpoint,
 				endpointIndex,
 				modelRanks,
+				canonicalServiceTier,
 				batcher,
 				result,
 				nowMS,
@@ -638,6 +641,7 @@ func streamLegacyModelsValue(
 	endpoint string,
 	endpointIndex int,
 	modelRanks map[string]int,
+	canonicalServiceTier bool,
 	batcher *importBatcher,
 	result *ImportStreamResult,
 	nowMS int64,
@@ -662,6 +666,7 @@ func streamLegacyModelsValue(
 			model,
 			endpointIndex,
 			modelRanks[model],
+			canonicalServiceTier,
 			batcher,
 			result,
 			nowMS,
@@ -681,6 +686,7 @@ func streamLegacyModelValue(
 	model string,
 	endpointIndex int,
 	modelIndex int,
+	canonicalServiceTier bool,
 	batcher *importBatcher,
 	result *ImportStreamResult,
 	nowMS int64,
@@ -711,6 +717,7 @@ func streamLegacyModelValue(
 				model,
 				endpointIndex,
 				modelIndex,
+				canonicalServiceTier,
 				batcher,
 				result,
 				nowMS,
@@ -741,6 +748,7 @@ func streamLegacyDetailsValue(
 	model string,
 	endpointIndex int,
 	modelIndex int,
+	canonicalServiceTier bool,
 	batcher *importBatcher,
 	result *ImportStreamResult,
 	nowMS int64,
@@ -775,6 +783,7 @@ func streamLegacyDetailsValue(
 			endpointIndex,
 			modelIndex,
 			detailIndex,
+			canonicalServiceTier,
 			nowMS,
 		)
 		detailIndex++
@@ -1197,6 +1206,13 @@ func eventFromExportedRecord(record map[string]any) (Event, bool, error) {
 	provider := readString(record, "provider")
 	executorType := readString(record, "executor_type", "executorType")
 	providerSnapshot := readString(record, "auth_provider_snapshot", "authProviderSnapshot")
+	serviceTier := readString(record, "service_tier", "serviceTier")
+	reportedEffectiveServiceTier := readString(record, "effective_service_tier", "effectiveServiceTier")
+	if reportedEffectiveServiceTier == "" {
+		// Exported CPAMP events already store their canonical billing tier in
+		// service_tier. Treat it as authoritative when importing the export.
+		reportedEffectiveServiceTier = serviceTier
+	}
 	rawJSON := importCacheAccountingRawJSON(record)
 	rawHints := RawCacheAccountingHintsFromJSON(rawJSON)
 	explicitMode := cacheInputModeFromRecord(record)
@@ -1245,9 +1261,10 @@ func eventFromExportedRecord(record map[string]any) (Event, bool, error) {
 		AuthProjectIDSnapshot:         readString(record, "auth_project_id_snapshot", "authProjectIdSnapshot"),
 		AuthSnapshotAtMS:              readInt(record, "auth_snapshot_at_ms", "authSnapshotAtMs"),
 		ReasoningEffort:               readString(record, "reasoning_effort", "reasoningEffort"),
-		ServiceTier:                   readString(record, "service_tier", "serviceTier"),
+		ServiceTier:                   serviceTier,
 		RequestServiceTier:            readString(record, "request_service_tier", "requestServiceTier"),
 		ResponseServiceTier:           readString(record, "response_service_tier", "responseServiceTier"),
+		EffectiveServiceTier:          reportedEffectiveServiceTier,
 		CacheInputMode:                accounting.Mode,
 		InputTokens:                   inputTokens,
 		OutputTokens:                  outputTokens,
@@ -1270,12 +1287,12 @@ func eventFromExportedRecord(record map[string]any) (Event, bool, error) {
 		RawJSON:                       rawJSON,
 		CreatedAtMS:                   readInt(record, "created_at_ms", "createdAtMs"),
 	}
-	event.ServiceTier = EffectiveServiceTier(CacheInputContext{
+	event.ServiceTier = ResolveEffectiveServiceTier(CacheInputContext{
 		ExecutorType:     event.ExecutorType,
 		Provider:         event.Provider,
 		ProviderSnapshot: event.AuthProviderSnapshot,
 		AuthType:         event.AuthType,
-	}, event.RequestServiceTier, event.ServiceTier, event.ResponseServiceTier)
+	}, event.EffectiveServiceTier, event.RequestServiceTier, event.ServiceTier, event.ResponseServiceTier)
 	if event.Endpoint == "" {
 		event.Endpoint = "-"
 	}
@@ -1345,6 +1362,7 @@ func eventsFromLegacyUsage(usageRecord map[string]any, format string) (ImportPar
 					endpointIndex,
 					modelIndex,
 					detailIndex,
+					format == ImportFormatLegacyExport,
 					now,
 				)
 				if err != nil {
@@ -1371,6 +1389,7 @@ func eventFromLegacyDetail(
 	endpointIndex int,
 	modelIndex int,
 	detailIndex int,
+	canonicalServiceTier bool,
 	now int64,
 ) (Event, error) {
 	timestamp := readString(detail, "timestamp", "time", "created_at", "createdAt")
@@ -1393,6 +1412,14 @@ func eventFromLegacyDetail(
 	provider := readString(detail, "provider", "type", "auth_type", "authType")
 	executorType := readString(detail, "executor_type", "executorType")
 	providerSnapshot := readString(detail, "auth_provider_snapshot", "authProviderSnapshot")
+	serviceTier := readString(detail, "service_tier", "serviceTier")
+	reportedEffectiveServiceTier := readString(detail, "effective_service_tier", "effectiveServiceTier")
+	if reportedEffectiveServiceTier == "" && canonicalServiceTier {
+		// Wrapped CPAMP exports already project the canonical billing tier into
+		// service_tier. Direct CPA payloads use the same field for the client
+		// request, so only trust it for the wrapped export format.
+		reportedEffectiveServiceTier = serviceTier
+	}
 	requestedModel := readString(detail, "requested_model", "requestedModel", "alias")
 	resolvedModel := readString(detail, "resolved_model", "resolvedModel")
 	displayModel := model
@@ -1441,9 +1468,10 @@ func eventFromLegacyDetail(
 		AuthProjectIDSnapshot:         readString(detail, "auth_project_id_snapshot", "authProjectIdSnapshot"),
 		AuthSnapshotAtMS:              readInt(detail, "auth_snapshot_at_ms", "authSnapshotAtMs"),
 		ReasoningEffort:               readString(detail, "reasoning_effort", "reasoningEffort"),
-		ServiceTier:                   readString(detail, "service_tier", "serviceTier"),
+		ServiceTier:                   serviceTier,
 		RequestServiceTier:            readString(detail, "request_service_tier", "requestServiceTier"),
 		ResponseServiceTier:           readString(detail, "response_service_tier", "responseServiceTier"),
+		EffectiveServiceTier:          reportedEffectiveServiceTier,
 		CacheInputMode:                accounting.Mode,
 		InputTokens:                   inputTokens,
 		OutputTokens:                  outputTokens,
@@ -1466,12 +1494,12 @@ func eventFromLegacyDetail(
 		RawJSON:                       rawJSON,
 		CreatedAtMS:                   now,
 	}
-	event.ServiceTier = EffectiveServiceTier(CacheInputContext{
+	event.ServiceTier = ResolveEffectiveServiceTier(CacheInputContext{
 		ExecutorType:     event.ExecutorType,
 		Provider:         event.Provider,
 		ProviderSnapshot: event.AuthProviderSnapshot,
 		AuthType:         event.AuthType,
-	}, event.RequestServiceTier, event.ServiceTier, event.ResponseServiceTier)
+	}, event.EffectiveServiceTier, event.RequestServiceTier, event.ServiceTier, event.ResponseServiceTier)
 	if event.Model == "" {
 		event.Model = "-"
 	}
