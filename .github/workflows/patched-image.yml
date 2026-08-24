@@ -1,0 +1,212 @@
+name: Build patched image
+
+on:
+  push:
+    branches:
+      - codex/cpamp-effective-tier
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Exact patched branch commit to test and build
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: patched-image
+  cancel-in-progress: true
+
+env:
+  IMAGE_NAME: ghcr.io/nekopara-ai/cpa-manager-plus
+  PATCH_BRANCH: codex/cpamp-effective-tier
+  UPSTREAM_REPOSITORY: seakee/CPA-Manager-Plus
+
+jobs:
+  test:
+    if: github.repository == 'nekopara-ai/CPA-Manager-Plus'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    outputs:
+      main_sha: ${{ steps.metadata.outputs.main_sha }}
+      source_sha: ${{ steps.metadata.outputs.source_sha }}
+      upstream_tag: ${{ steps.metadata.outputs.upstream_tag }}
+      version: ${{ steps.metadata.outputs.version }}
+
+    steps:
+      - name: Checkout patched source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.source_sha || (github.event_name == 'push' && github.sha) || 'codex/cpamp-effective-tier' }}
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+
+      - name: Resolve and validate build metadata
+        id: metadata
+        shell: bash
+        env:
+          EXPECTED_SOURCE_SHA: ${{ inputs.source_sha }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          git fetch --no-tags origin \
+            "+refs/heads/${PATCH_BRANCH}:refs/remotes/origin/${PATCH_BRANCH}" \
+            '+refs/heads/main:refs/remotes/origin/main'
+
+          source_sha="$(git rev-parse HEAD)"
+          patch_head="$(git rev-parse "refs/remotes/origin/${PATCH_BRANCH}")"
+          if [[ -n "${EXPECTED_SOURCE_SHA}" && ! "${EXPECTED_SOURCE_SHA}" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "Invalid source SHA: ${EXPECTED_SOURCE_SHA}" >&2
+            exit 1
+          fi
+          if [[ -n "${EXPECTED_SOURCE_SHA}" && "${source_sha}" != "${EXPECTED_SOURCE_SHA}" ]]; then
+            echo "Checked out ${source_sha}; expected ${EXPECTED_SOURCE_SHA}" >&2
+            exit 1
+          fi
+          if [[ "${source_sha}" != "${patch_head}" ]]; then
+            echo "Refusing stale build: source=${source_sha} patch_head=${patch_head}" >&2
+            exit 1
+          fi
+
+          main_sha="$(git rev-parse refs/remotes/origin/main)"
+          if ! git merge-base --is-ancestor "${main_sha}" "${source_sha}"; then
+            echo "Patched source ${source_sha} does not contain main ${main_sha}" >&2
+            exit 1
+          fi
+
+          upstream_tag="$(gh api "repos/${UPSTREAM_REPOSITORY}/releases/latest" --jq .tag_name)"
+          if [[ ! "${upstream_tag}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Unexpected upstream release tag: ${upstream_tag}" >&2
+            exit 1
+          fi
+          git fetch --force --no-tags \
+            "https://github.com/${UPSTREAM_REPOSITORY}.git" \
+            "refs/tags/${upstream_tag}:refs/tags/${upstream_tag}"
+          upstream_commit="$(git rev-list -n 1 "${upstream_tag}")"
+          if ! git merge-base --is-ancestor "${upstream_commit}" "${source_sha}"; then
+            echo "Patched source does not contain upstream release ${upstream_tag}" >&2
+            exit 1
+          fi
+
+          patch_revision="$(git rev-list --count "${upstream_commit}..${source_sha}")"
+          if [[ ! "${patch_revision}" =~ ^[1-9][0-9]*$ ]]; then
+            echo "Invalid patch revision: ${patch_revision}" >&2
+            exit 1
+          fi
+          version="${upstream_tag#v}-nekopara.${patch_revision}"
+
+          echo "main_sha=${main_sha}" >> "${GITHUB_OUTPUT}"
+          echo "source_sha=${source_sha}" >> "${GITHUB_OUTPUT}"
+          echo "upstream_tag=${upstream_tag}" >> "${GITHUB_OUTPUT}"
+          echo "version=${version}" >> "${GITHUB_OUTPUT}"
+
+      - name: Verify effective service tier patch is present
+        run: |
+          set -euo pipefail
+          git grep -F 'effective_service_tier' -- \
+            apps/manager-server/internal/usage/event.go \
+            apps/web/src/utils/usage.ts
+          git grep -F 'TestNormalizeRawPrefersReportedEffectiveServiceTier' -- \
+            apps/manager-server/internal/usage/import_test.go
+          git grep -F 'uses CPA translated effective tier' -- \
+            apps/web/src/utils/usage.test.ts
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Setup Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.24.x'
+          cache-dependency-path: apps/manager-server/go.sum
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npm run type-check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test frontend and repository integrity
+        run: npm run test
+
+      - name: Build single-file panel
+        run: npm run build
+        env:
+          VERSION: ${{ steps.metadata.outputs.version }}
+
+      - name: Test Manager Server
+        working-directory: apps/manager-server
+        run: go test ./...
+
+      - name: Test Manager Server with the race detector
+        working-directory: apps/manager-server
+        run: go test -race -timeout 30m ./...
+
+  image:
+    if: github.repository == 'nekopara-ai/CPA-Manager-Plus'
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout tested source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.test.outputs.source_sha }}
+          persist-credentials: false
+
+      - name: Setup QEMU
+        uses: docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8 # v4.2.0
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+
+      - name: Login to GHCR
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate image metadata
+        id: image-metadata
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=${{ needs.test.outputs.version }}
+            type=raw,value=patched
+            type=raw,value=sha-${{ needs.test.outputs.source_sha }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ needs.test.outputs.source_sha }}
+            org.opencontainers.image.version=${{ needs.test.outputs.version }}
+            org.opencontainers.image.licenses=MIT
+
+      - name: Build and push multi-platform image
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        with:
+          context: .
+          file: Dockerfile.manager-server
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.image-metadata.outputs.tags }}
+          labels: ${{ steps.image-metadata.outputs.labels }}
+          build-args: |
+            VERSION=${{ needs.test.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: mode=max
+          sbom: true
