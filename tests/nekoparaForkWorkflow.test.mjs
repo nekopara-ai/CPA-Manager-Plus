@@ -25,6 +25,7 @@ describe('Nekopara fork workflows', () => {
     expect(workflow).toContain('release.yml');
     expect(workflow).toContain('release-publish-recovery.yml');
     expect(workflow).toContain('release-telegram-recovery.yml');
+    expect(workflow).toContain('if [[ "${workflow_state}" == \'active\' ]]');
     expect(workflow).toContain('/actions/workflows/${workflow}/disable');
     expect(workflow).toContain('Disable all workflows not used by the fork');
     expect(workflow).toContain('.github/workflows/sync-upstream-main.yml');
