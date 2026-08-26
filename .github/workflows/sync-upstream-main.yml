@@ -26,6 +26,7 @@ jobs:
     timeout-minutes: 20
     env:
       PATCH_BRANCH: codex/cpamp-effective-tier
+      UPSTREAM_REPOSITORY: seakee/CPA-Manager-Plus
 
     steps:
       - name: Disable inherited upstream publishing workflows
@@ -39,24 +40,92 @@ jobs:
             release-publish-recovery.yml \
             release-telegram-recovery.yml
           do
-            gh api \
-              --method PUT \
-              -H 'Accept: application/vnd.github+json' \
-              -H 'X-GitHub-Api-Version: 2022-11-28' \
-              "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}/disable"
+            workflow_state="$(
+              gh api \
+                -H 'Accept: application/vnd.github+json' \
+                -H 'X-GitHub-Api-Version: 2022-11-28' \
+                "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}" \
+                --jq '.state'
+            )"
+            if [[ "${workflow_state}" == 'active' ]]; then
+              gh api \
+                --method PUT \
+                -H 'Accept: application/vnd.github+json' \
+                -H 'X-GitHub-Api-Version: 2022-11-28' \
+                "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}/disable"
+            else
+              echo "${workflow} is already ${workflow_state}"
+            fi
           done
 
+      - name: Checkout fork main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 0
+
       - name: Sync main from upstream
-        env:
-          GH_TOKEN: ${{ github.token }}
+        shell: bash
         run: |
           set -euo pipefail
-          gh api \
-            --method POST \
-            -H 'Accept: application/vnd.github+json' \
-            -H 'X-GitHub-Api-Version: 2022-11-28' \
-            "repos/${GITHUB_REPOSITORY}/merge-upstream" \
-            -f branch=main
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git remote add upstream "https://github.com/${UPSTREAM_REPOSITORY}.git"
+          git fetch --no-tags upstream \
+            '+refs/heads/main:refs/remotes/upstream/main'
+
+          if git merge-base --is-ancestor refs/remotes/upstream/main HEAD; then
+            echo 'main already contains upstream/main'
+          else
+            if ! git merge --no-edit refs/remotes/upstream/main; then
+              echo 'Automatic upstream merge into main has conflicts:' >&2
+              git diff --name-only --diff-filter=U >&2 || true
+              git merge --abort || true
+              exit 1
+            fi
+
+            git fetch --no-tags origin \
+              '+refs/heads/main:refs/remotes/origin/main'
+            if ! git merge-base --is-ancestor refs/remotes/origin/main HEAD; then
+              echo 'Fork main advanced during synchronization; refusing to push' >&2
+              exit 1
+            fi
+
+            git push origin HEAD:refs/heads/main
+          fi
+
+      - name: Disable all workflows not used by the fork
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          while IFS=$'\t' read -r workflow_id workflow_path workflow_state; do
+            case "${workflow_path}" in
+              .github/workflows/sync-upstream-main.yml | \
+                .github/workflows/patched-image.yml)
+                continue
+                ;;
+            esac
+
+            if [[ "${workflow_state}" == 'active' ]]; then
+              echo "Disabling inherited workflow ${workflow_path}"
+              gh api \
+                --method PUT \
+                -H 'Accept: application/vnd.github+json' \
+                -H 'X-GitHub-Api-Version: 2022-11-28' \
+                "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow_id}/disable"
+            fi
+          done < <(
+            gh api \
+              --paginate \
+              -H 'Accept: application/vnd.github+json' \
+              -H 'X-GitHub-Api-Version: 2022-11-28' \
+              "repos/${GITHUB_REPOSITORY}/actions/workflows" \
+              --jq '.workflows[] | [.id, .path, .state] | @tsv'
+          )
 
       - name: Checkout patched image branch
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -90,22 +159,23 @@ jobs:
             git push origin "HEAD:refs/heads/${PATCH_BRANCH}"
           fi
 
-          existing_runs="$(
+          blocking_runs="$(
             gh api \
               --method GET \
               "repos/${GITHUB_REPOSITORY}/actions/workflows/patched-image.yml/runs" \
               -f branch="${PATCH_BRANCH}" \
               -f head_sha="${source_sha}" \
-              -f per_page=1 \
-              --jq '.total_count'
+              -f per_page=100 \
+              --jq '[.workflow_runs[] | select(.status != "completed" or .conclusion == "success")] | length'
           )"
-          if [[ "${existing_runs}" == "0" ]]; then
+          if [[ "${blocking_runs}" == "0" ]]; then
             # Pushes made by GITHUB_TOKEN do not start another workflow. Use
-            # workflow_dispatch so every newly synchronized source is built.
+            # workflow_dispatch so every new source is built and failed runs
+            # can be retried by the next synchronization.
             gh workflow run patched-image.yml \
               --repo "${GITHUB_REPOSITORY}" \
               --ref "${PATCH_BRANCH}" \
               -f source_sha="${source_sha}"
           else
-            echo "A patched-image run already exists for ${source_sha}"
+            echo "A successful or active patched-image run exists for ${source_sha}"
           fi

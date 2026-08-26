@@ -119,7 +119,10 @@ components -> entities / services / stores / hooks / utils
 
 ## Git And PRs
 
-- No direct commits to `main`.
+- No direct commits to `main`, except in the `nekopara-ai/CPA-Manager-Plus`
+  fork when the user explicitly authorizes a non-force fast-forward for fork
+  bootstrap or automation. Fetch the remote first, require its `main` to be an
+  ancestor of the proposed update, and never force-push.
 - Conventional subjects: `feat(web): ...`, `feat(manager-server): ...`, `fix(login): ...`, `docs: ...`.
 - Keep commits scoped; no AI markers.
 - PRs: purpose, tests, linked issues, UI screenshots/recordings when relevant, affected modes (`frontend-only`, `CPA panel`, `full Docker`, `native packages`).
