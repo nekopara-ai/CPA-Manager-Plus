@@ -5,8 +5,8 @@ carrying the minimum compatibility changes required by the Nekopara CPA fork.
 
 ## Branches
 
-- `main` contains the fork automation and receives upstream `main` through the
-  GitHub merge-upstream API.
+- `main` contains the fork automation and receives upstream `main` through an
+  ordinary Git merge. The workflow pushes only after a conflict-free merge.
 - `codex/cpamp-effective-tier` contains the compatibility patch. The sync
   workflow merges updated `main` into this branch without conflict overrides.
 - A merge conflict fails closed and requires a reviewed manual resolution.
@@ -19,10 +19,13 @@ GitHub scheduled workflows only run from the default branch. Keep
 `.github/workflows/sync-upstream-main.yml` on the default `main` branch even
 when the application patch is maintained separately.
 
-The sync workflow disables the inherited upstream publishing workflows before
-performing any update. They target the `seakee/cpa-manager-plus` release
-namespace and are not part of the fork release path. During initial fork setup,
-the same workflows can also be disabled manually before Actions is enabled:
+The sync workflow disables the known inherited publishing workflows before
+performing any update, then disables every registered workflow except the sync
+and patched-image workflows. This allowlist prevents newly inherited upstream
+automation from becoming part of the fork release path. Any future fork-owned
+workflow must be reviewed and added to the allowlist explicitly. During initial
+fork setup, the known publishing workflows can also be disabled manually before
+Actions is enabled:
 
 ```bash
 gh workflow disable release.yml --repo nekopara-ai/CPA-Manager-Plus

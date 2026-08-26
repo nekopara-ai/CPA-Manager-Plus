@@ -12,7 +12,12 @@ describe('Nekopara fork workflows', () => {
     const workflow = readWorkflow('sync-upstream-main.yml');
 
     expect(workflow).toContain("github.repository == 'nekopara-ai/CPA-Manager-Plus'");
-    expect(workflow).toContain('repos/${GITHUB_REPOSITORY}/merge-upstream');
+    expect(workflow).toContain('UPSTREAM_REPOSITORY: seakee/CPA-Manager-Plus');
+    expect(workflow).toContain("'+refs/heads/main:refs/remotes/upstream/main'");
+    expect(workflow).toContain('git merge --no-edit refs/remotes/upstream/main');
+    expect(workflow).toContain("'+refs/heads/main:refs/remotes/origin/main'");
+    expect(workflow).toContain('git merge-base --is-ancestor refs/remotes/origin/main HEAD');
+    expect(workflow).toContain('git push origin HEAD:refs/heads/main');
     expect(workflow).toContain('PATCH_BRANCH: codex/cpamp-effective-tier');
     expect(workflow).toContain('git merge --no-edit origin/main');
     expect(workflow).toContain('git merge --abort');
@@ -21,9 +26,17 @@ describe('Nekopara fork workflows', () => {
     expect(workflow).toContain('release-publish-recovery.yml');
     expect(workflow).toContain('release-telegram-recovery.yml');
     expect(workflow).toContain('/actions/workflows/${workflow}/disable');
+    expect(workflow).toContain('Disable all workflows not used by the fork');
+    expect(workflow).toContain('.github/workflows/sync-upstream-main.yml');
+    expect(workflow).toContain('.github/workflows/patched-image.yml');
+    expect(workflow).toContain('/actions/workflows/${workflow_id}/disable');
     expect(workflow).toContain('gh workflow run patched-image.yml');
     expect(workflow).toContain('-f source_sha="${source_sha}"');
+    expect(workflow).toContain('.status != "completed"');
+    expect(workflow).toContain('.conclusion == "success"');
+    expect(workflow).toContain('failed runs');
     expect(workflow).not.toContain('git push --force');
+    expect(workflow).not.toContain('/merge-upstream');
     expect(workflow).not.toContain('-X theirs');
     expect(workflow).not.toContain('-X ours');
   });
