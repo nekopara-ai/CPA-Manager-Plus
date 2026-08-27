@@ -164,3 +164,57 @@ func TestUpsertActiveKeepsMetadataForWinningRecovery(t *testing.T) {
 		t.Fatalf("longer cooldown did not replace winning metadata: %#v", longer)
 	}
 }
+
+func TestUpsertActiveBeginsNewCycleAfterCredentialWasEnabled(t *testing.T) {
+	st, err := store.Open(filepath.Join(t.TempDir(), "usage.sqlite"))
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	t.Cleanup(func() { _ = st.Close() })
+
+	ctx := context.Background()
+	first, err := st.QuotaCooldowns.UpsertActive(ctx, model.QuotaCooldownUpsert{
+		AuthFileName: "codex.json",
+		AuthIndex:    "auth-1",
+		Provider:     "codex",
+		ReasonCode:   "weekly_limit",
+		WindowKind:   "weekly",
+		RecoverAtMS:  7_000,
+		Owner:        model.QuotaCooldownOwnerUsage429,
+		EventHash:    "evt-weekly",
+		DisabledAtMS: 100,
+	})
+	if err != nil {
+		t.Fatalf("insert old cooldown cycle: %v", err)
+	}
+
+	second, err := st.QuotaCooldowns.UpsertActive(ctx, model.QuotaCooldownUpsert{
+		AuthFileName:  "codex.json",
+		AuthIndex:     "auth-1",
+		Provider:      "codex",
+		ReasonCode:    "five_hour_limit",
+		WindowKind:    "five_hour",
+		RecoverAtMS:   5_000,
+		Owner:         model.QuotaCooldownOwnerUsage429,
+		EventHash:     "evt-five-hour",
+		DisabledAtMS:  200,
+		BeginNewCycle: true,
+	})
+	if err != nil {
+		t.Fatalf("begin new cooldown cycle: %v", err)
+	}
+	if second.ID == first.ID {
+		t.Fatalf("new cooldown reused stale active record id=%d", second.ID)
+	}
+	if second.RecoverAtMS != 5_000 || second.ReasonCode != "five_hour_limit" || second.WindowKind != "five_hour" || second.EventHash != "evt-five-hour" || second.DisabledAtMS != 200 {
+		t.Fatalf("new cooldown = %#v", second)
+	}
+
+	active, err := st.QuotaCooldowns.ListActive(ctx)
+	if err != nil {
+		t.Fatalf("list active cooldowns: %v", err)
+	}
+	if len(active) != 1 || active[0].ID != second.ID {
+		t.Fatalf("active cooldowns = %#v, want only new cycle", active)
+	}
+}
