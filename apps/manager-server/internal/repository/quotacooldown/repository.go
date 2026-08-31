@@ -52,6 +52,9 @@ func (r *repository) UpsertActive(ctx context.Context, cooldown model.QuotaCoold
 	if cooldown.DisabledAtMS <= 0 {
 		cooldown.DisabledAtMS = now
 	}
+	if cooldown.ObservedEnabledAtMS > cooldown.DisabledAtMS {
+		return model.QuotaCooldown{}, errors.New("quota cooldown observed_enabled_at_ms must not exceed disabled_at_ms")
+	}
 
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -111,15 +114,15 @@ func (r *repository) UpsertActive(ctx context.Context, cooldown model.QuotaCoold
 			}
 		}
 	}
-	if found && cooldown.BeginNewCycle {
+	if found && cooldown.ObservedEnabledAtMS > 0 {
 		_, err = tx.ExecContext(ctx, `update quota_cooldowns set
 			status = ?,
 			recovered_at_ms = ?,
 			last_error = null,
 			updated_at_ms = ?
-		where id = ? and status = ?`,
+			where id = ? and status = ?`,
 			model.QuotaCooldownStatusRecovered,
-			cooldown.DisabledAtMS,
+			cooldown.ObservedEnabledAtMS,
 			now,
 			id,
 			model.QuotaCooldownStatusActive,

@@ -2,6 +2,7 @@ package quotacooldown_test
 
 import (
 	"context"
+	"database/sql"
 	"path/filepath"
 	"testing"
 
@@ -165,12 +166,18 @@ func TestUpsertActiveKeepsMetadataForWinningRecovery(t *testing.T) {
 	}
 }
 
-func TestUpsertActiveBeginsNewCycleAfterCredentialWasEnabled(t *testing.T) {
-	st, err := store.Open(filepath.Join(t.TempDir(), "usage.sqlite"))
+func TestUpsertActiveBeginsNewCycleAfterObservedEnable(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "usage.sqlite")
+	st, err := store.Open(dbPath)
 	if err != nil {
 		t.Fatalf("open store: %v", err)
 	}
 	t.Cleanup(func() { _ = st.Close() })
+	raw, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatalf("open raw sqlite: %v", err)
+	}
+	t.Cleanup(func() { _ = raw.Close() })
 
 	ctx := context.Background()
 	first, err := st.QuotaCooldowns.UpsertActive(ctx, model.QuotaCooldownUpsert{
@@ -189,16 +196,16 @@ func TestUpsertActiveBeginsNewCycleAfterCredentialWasEnabled(t *testing.T) {
 	}
 
 	second, err := st.QuotaCooldowns.UpsertActive(ctx, model.QuotaCooldownUpsert{
-		AuthFileName:  "codex.json",
-		AuthIndex:     "auth-1",
-		Provider:      "codex",
-		ReasonCode:    "five_hour_limit",
-		WindowKind:    "five_hour",
-		RecoverAtMS:   5_000,
-		Owner:         model.QuotaCooldownOwnerUsage429,
-		EventHash:     "evt-five-hour",
-		DisabledAtMS:  200,
-		BeginNewCycle: true,
+		AuthFileName:        "codex.json",
+		AuthIndex:           "auth-1",
+		Provider:            "codex",
+		ReasonCode:          "five_hour_limit",
+		WindowKind:          "five_hour",
+		RecoverAtMS:         5_000,
+		Owner:               model.QuotaCooldownOwnerUsage429,
+		EventHash:           "evt-five-hour",
+		ObservedEnabledAtMS: 200,
+		DisabledAtMS:        300,
 	})
 	if err != nil {
 		t.Fatalf("begin new cooldown cycle: %v", err)
@@ -206,7 +213,7 @@ func TestUpsertActiveBeginsNewCycleAfterCredentialWasEnabled(t *testing.T) {
 	if second.ID == first.ID {
 		t.Fatalf("new cooldown reused stale active record id=%d", second.ID)
 	}
-	if second.RecoverAtMS != 5_000 || second.ReasonCode != "five_hour_limit" || second.WindowKind != "five_hour" || second.EventHash != "evt-five-hour" || second.DisabledAtMS != 200 {
+	if second.RecoverAtMS != 5_000 || second.ReasonCode != "five_hour_limit" || second.WindowKind != "five_hour" || second.EventHash != "evt-five-hour" || second.DisabledAtMS != 300 {
 		t.Fatalf("new cooldown = %#v", second)
 	}
 
@@ -216,5 +223,20 @@ func TestUpsertActiveBeginsNewCycleAfterCredentialWasEnabled(t *testing.T) {
 	}
 	if len(active) != 1 || active[0].ID != second.ID {
 		t.Fatalf("active cooldowns = %#v, want only new cycle", active)
+	}
+
+	var oldStatus string
+	var oldRecoveredAtMS sql.NullInt64
+	if err := raw.QueryRowContext(ctx, `select status, recovered_at_ms from quota_cooldowns where id = ?`, first.ID).Scan(&oldStatus, &oldRecoveredAtMS); err != nil {
+		t.Fatalf("read archived cooldown: %v", err)
+	}
+	if oldStatus != model.QuotaCooldownStatusRecovered || !oldRecoveredAtMS.Valid {
+		t.Fatalf("archived cooldown status=%q recovered_at_ms=%#v", oldStatus, oldRecoveredAtMS)
+	}
+	if oldRecoveredAtMS.Int64 != 200 {
+		t.Fatalf("archived cooldown recovered_at_ms=%d, want 200", oldRecoveredAtMS.Int64)
+	}
+	if oldRecoveredAtMS.Int64 > second.DisabledAtMS {
+		t.Fatalf("archived cooldown recovered_at_ms=%d exceeds new disabled_at_ms=%d", oldRecoveredAtMS.Int64, second.DisabledAtMS)
 	}
 }

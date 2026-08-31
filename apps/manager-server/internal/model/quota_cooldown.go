@@ -31,20 +31,17 @@ type QuotaCooldown struct {
 }
 
 type QuotaCooldownUpsert struct {
-	AuthFileName     string
-	AuthIndex        string
-	AccountSnapshot  string
-	Provider         string
-	ReasonCode       string
-	WindowKind       string
-	EvidenceJSON     string
-	RecoverAtMS      int64
-	Owner            string
-	EventHash        string
-	PreDisabledState bool
-	DisabledAtMS     int64
-	// BeginNewCycle archives a matching active row before inserting this row.
-	// Callers set it only after observing that the credential is enabled, which
-	// proves the previous CPAMP-owned disabled interval has ended.
-	BeginNewCycle bool
+	AuthFileName        string
+	AuthIndex           string
+	AccountSnapshot     string
+	Provider            string
+	ReasonCode          string
+	WindowKind          string
+	EvidenceJSON        string
+	RecoverAtMS         int64
+	Owner               string
+	EventHash           string
+	PreDisabledState    bool
+	ObservedEnabledAtMS int64
+	DisabledAtMS        int64
 }
