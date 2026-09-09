@@ -203,6 +203,7 @@ export type MonitoringEventRow = {
   reasoningEffort?: string;
   serviceTier?: string;
   requestServiceTier?: string;
+  effectiveServiceTier?: string;
   responseServiceTier?: string;
   executorType?: string;
   failStatusCode?: number | null;

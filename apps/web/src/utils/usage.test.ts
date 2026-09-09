@@ -18,6 +18,7 @@ import {
   normalizeAnalyticsModel,
   normalizeCacheAccounting,
   normalizeUsageSourceId,
+  resolveBillingServiceTier,
 } from './usage';
 import { maskSensitiveText } from './format';
 import cacheInputAccountingFixtures from './cacheInputAccounting.fixtures.json';
@@ -981,6 +982,58 @@ describe('calculateCost model price preference', () => {
       { 'gpt-5.4': { prompt: 2.5, completion: 5, cache: 1 } }
     );
     expect(cost).toBeCloseTo(0.25);
+  });
+
+  it('treats a reported blank CPA effective tier as default, not the request tier', () => {
+    const modelPrices = {
+      'gpt-5.6': {
+        prompt: 1,
+        completion: 2,
+        cache: 0.5,
+        serviceTiers: [
+          {
+            mode: 'fast',
+            serviceTier: 'priority',
+            prompt: 2,
+            completion: 4,
+            cache: 1,
+            promptConfigured: true,
+            completionConfigured: true,
+          },
+        ],
+      },
+    };
+    const detail = {
+      tokens: { input_tokens: 100_000 },
+      __modelName: 'gpt-5.6',
+      executor_type: 'codex',
+      service_tier: 'auto',
+      request_service_tier: 'auto',
+      effective_service_tier: '',
+      response_service_tier: 'default',
+    };
+
+    expect(resolveBillingServiceTier(detail)).toBe('default');
+    expect(calculateCost(detail, modelPrices)).toBeCloseTo(0.1);
+
+    const detailCamelCase = {
+      ...detail,
+      effective_service_tier: undefined,
+      effectiveServiceTier: '  ',
+    };
+    expect(resolveBillingServiceTier(detailCamelCase)).toBe('default');
+    expect(calculateCost(detailCamelCase, modelPrices)).toBeCloseTo(0.1);
+  });
+
+  it('keeps the client request tier when CPA never reports an effective tier', () => {
+    expect(
+      resolveBillingServiceTier({
+        executor_type: 'codex',
+        service_tier: 'priority',
+        request_service_tier: 'priority',
+        response_service_tier: 'default',
+      })
+    ).toBe('priority');
   });
 
   it('does not stack priority pricing with long-context pricing', () => {

@@ -1184,9 +1184,21 @@ export function resolveBillingServiceTier(detail: ServiceTierDetail): string | u
     .toLowerCase();
 
   if (identity.includes('codex')) {
-    return firstServiceTier(
+    // CPA omits service_tier from the final outbound payload for standard-priority
+    // calls, so an explicitly reported blank effective tier means default. Prefer
+    // that over the client request tier so standard calls are not billed as fast.
+    const effectiveTier = firstServiceTier(
       detail.effective_service_tier,
-      detail.effectiveServiceTier,
+      detail.effectiveServiceTier
+    );
+    if (effectiveTier) {
+      return effectiveTier;
+    }
+    const outboundTierKnown =
+      detail.effective_service_tier !== undefined ||
+      detail.effectiveServiceTier !== undefined;
+    return firstServiceTier(
+      outboundTierKnown ? 'default' : undefined,
       detail.service_tier,
       detail.serviceTier,
       detail.request_service_tier,

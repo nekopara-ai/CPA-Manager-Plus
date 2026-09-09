@@ -2472,6 +2472,7 @@
     "service_tier_short": "Tier",
     "request_service_tier_short": "Requested tier",
     "response_service_tier_short": "Reported tier",
+    "service_tier_breakdown": "Requested {{request}} · Translated {{effective}} · Reported {{response}}",
     "executor_type": "Executor Type",
     "executor_type_short": "Executor",
     "fail_status_code": "Failure Status Code",

@@ -205,6 +205,20 @@ describe('buildEventRows', () => {
     });
 
     expect(row.serviceTier).toBe('priority');
+    expect(row.effectiveServiceTier).toBe('priority');
+  });
+
+  it('treats a reported blank CPA effective tier as default and keeps it visible', () => {
+    const [row] = buildRows({
+      executor_type: 'codex',
+      service_tier: 'auto',
+      request_service_tier: 'auto',
+      effective_service_tier: 'default',
+      response_service_tier: 'default',
+    });
+
+    expect(row.serviceTier).toBe('default');
+    expect(row.effectiveServiceTier).toBe('default');
   });
 
   it('uses the analytics model as primary identity while keeping requested and resolved models searchable', () => {

@@ -2470,6 +2470,7 @@
     "service_tier_short": "等級",
     "request_service_tier_short": "請求等級",
     "response_service_tier_short": "回應等級",
+    "service_tier_breakdown": "請求 {{request}} · 轉發 {{effective}} · 回應 {{response}}",
     "executor_type": "執行器類型",
     "executor_type_short": "執行器",
     "fail_status_code": "失敗狀態碼",

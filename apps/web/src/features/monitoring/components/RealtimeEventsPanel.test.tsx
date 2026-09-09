@@ -78,6 +78,7 @@ const t = ((key: string, options?: Record<string, unknown>) => {
     'monitoring.service_tier_short': 'Tier',
     'monitoring.request_service_tier_short': 'Requested tier',
     'monitoring.response_service_tier_short': 'Reported tier',
+    'monitoring.service_tier_breakdown': 'Requested {{request}} · Translated {{effective}} · Reported {{response}}',
     'monitoring.this_call_cost': 'Cost',
     'monitoring.this_call_usage': 'Usage',
     'monitoring.ttft_short': 'TTFT',
@@ -295,6 +296,35 @@ describe('RealtimeEventsPanel', () => {
     expect(markup).not.toContain('>auto</span>');
   });
 
+  it('shows the CPA translated tier in the tooltip without mistaking it for the request tier', () => {
+    const markup = renderPanel(
+      baseRow({
+        executorType: 'codex',
+        serviceTier: 'default',
+        requestServiceTier: 'auto',
+        effectiveServiceTier: 'default',
+        responseServiceTier: 'default',
+      })
+    );
+
+    expect(markup).toContain('>default</span>');
+    expect(markup).toContain('Requested auto · Translated default · Reported default');
+  });
+
+  it('marks the translated tier as missing when CPA never reported one', () => {
+    const markup = renderPanel(
+      baseRow({
+        executorType: 'codex',
+        serviceTier: 'priority',
+        requestServiceTier: 'auto',
+        responseServiceTier: 'default',
+      })
+    );
+
+    expect(markup).toContain('Translated -');
+    expect(markup).toContain('Requested auto · Translated - · Reported default');
+  });
+
   it('renders structured xAI free-usage exhaustion evidence', () => {
     const markup = renderPanel(
       baseRow({
@@ -367,7 +397,7 @@ describe('RealtimeEventsPanel', () => {
     expect(markup).toContain('<colgroup>');
     expect(markup.match(/<col\b/g)).toHaveLength(12);
     expect(
-      markup.match(new RegExp(`class="[^"]*${styles.realtimeSettingValue}[^"]*">-</span>`, 'g'))
+      markup.match(new RegExp(`class="[^"]*${styles.realtimeSettingValue}[^"]*"[^>]*>-</span>`, 'g'))
     ).toHaveLength(2);
     expect(markup).toContain(
       `class="${styles.realtimeSettingsColumn}">Reasoning / Tier</th>`

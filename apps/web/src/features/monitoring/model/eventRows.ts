@@ -30,6 +30,40 @@ const calculateOutputTokensPerSecond = (
 
 const CODEX_ACCOUNT_ID_SNAPSHOT_PREFIX = 'codex-account-id:v1:';
 
+// The backend projects an explicitly reported blank CPA effective tier to
+// 'default' on ingest (blank means CPA omitted service_tier from the final
+// outbound payload, i.e. standard priority). Mirror that here for live payloads
+// that bypass server-side normalization.
+const normalizeDetailEffectiveServiceTier = (
+  detail: UsageDetailWithEndpoint
+): UsageDetailWithEndpoint => {
+  const identity = [
+    detail.executor_type ?? detail.executorType,
+    detail.provider,
+    detail.auth_provider_snapshot ?? detail.authProviderSnapshot,
+    detail.auth_type ?? detail.authType,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+  if (!identity.includes('codex')) {
+    return detail;
+  }
+  const hasEffectiveTierKey = (value: unknown) => value !== undefined && value !== null;
+  const blankEffectiveTier =
+    (hasEffectiveTierKey(detail.effective_service_tier) &&
+      !String(detail.effective_service_tier).trim()) ||
+    (hasEffectiveTierKey(detail.effectiveServiceTier) && !String(detail.effectiveServiceTier).trim());
+  if (!blankEffectiveTier) {
+    return detail;
+  }
+  return {
+    ...detail,
+    effective_service_tier: 'default',
+    effectiveServiceTier: 'default',
+  };
+};
+
 export const buildEventRows = (
   details: UsageDetailWithEndpoint[],
   authMetaMap: Map<string, MonitoringAuthMeta>,
@@ -40,7 +74,8 @@ export const buildEventRows = (
   apiKeyDisplayMap: Map<string, ApiKeyDisplayInfo>
 ) =>
   details
-    .map((detail, index) => {
+    .map((rawDetail, index) => {
+      const detail = normalizeDetailEffectiveServiceTier(rawDetail);
       const timestampMs =
         typeof detail.__timestampMs === 'number' && detail.__timestampMs > 0
           ? detail.__timestampMs
@@ -157,6 +192,9 @@ export const buildEventRows = (
       const responseServiceTier = readString(
         detail.response_service_tier ?? detail.responseServiceTier
       );
+      const effectiveServiceTier = readString(
+        detail.effective_service_tier ?? detail.effectiveServiceTier
+      );
       const serviceTier = readString(resolveBillingServiceTier(detail));
       const executorType = readString(detail.executor_type ?? detail.executorType);
       const failStatusCodeRaw = detail.fail_status_code ?? detail.failStatusCode;
@@ -257,6 +295,7 @@ export const buildEventRows = (
         reasoningEffort,
         serviceTier,
         requestServiceTier,
+        effectiveServiceTier,
         responseServiceTier,
         executorType,
         failStatusCode: normalizedFailStatusCode,

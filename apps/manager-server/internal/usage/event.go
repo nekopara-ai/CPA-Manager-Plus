@@ -243,10 +243,30 @@ func isCodexUsageContext(context CacheInputContext) bool {
 // Other providers and old CPA payloads retain the existing provider-aware
 // request/response fallback behavior.
 func ResolveEffectiveServiceTier(context CacheInputContext, reportedEffectiveTier, requestTier, legacyTier, responseTier string) string {
-	if tier := strings.TrimSpace(reportedEffectiveTier); tier != "" && isCodexUsageContext(context) {
-		return tier
+	// CPA omits service_tier from the final outbound payload for standard-priority
+	// Codex calls, so an explicitly empty/whitespace translated tier means default.
+	// Treat it as authoritative instead of falling back to the client request tier,
+	// otherwise standard calls are billed/displayed as fast again.
+	if isCodexUsageContext(context) {
+		if tier := strings.TrimSpace(reportedEffectiveTier); tier != "" {
+			return tier
+		}
 	}
 	return EffectiveServiceTier(context, requestTier, legacyTier, responseTier)
+}
+
+// NormalizeReportedEffectiveServiceTier keeps CPA's explicit final outbound tier
+// even when it is blank: blank means CPA translated the request to standard
+// priority (service_tier omitted from the outbound payload), not that the field
+// was never reported.
+func NormalizeReportedEffectiveServiceTier(raw string, present bool) string {
+	if !present {
+		return ""
+	}
+	if tier := strings.TrimSpace(raw); tier != "" {
+		return tier
+	}
+	return "default"
 }
 
 type RawCacheAccountingHints struct {
@@ -577,7 +597,8 @@ func NormalizeRaw(raw []byte) (Event, error) {
 	xForwardedFor := readString(record, "x_forwarded_for", "xForwardedFor")
 	userAgent := readString(record, "user_agent", "userAgent")
 	requestServiceTier := readString(record, "request_service_tier", "requestServiceTier", "service_tier", "serviceTier")
-	effectiveServiceTier := readString(record, "effective_service_tier", "effectiveServiceTier")
+	effectiveServiceTierRaw, effectiveServiceTierPresent := readStringPresent(record, "effective_service_tier", "effectiveServiceTier")
+	effectiveServiceTier := NormalizeReportedEffectiveServiceTier(effectiveServiceTierRaw, effectiveServiceTierPresent)
 	responseServiceTier := readString(record, "response_service_tier", "responseServiceTier")
 	authProviderSnapshot := readString(record, "auth_provider_snapshot", "authProviderSnapshot")
 	usageContext := CacheInputContext{
@@ -944,6 +965,18 @@ func first(record map[string]any, keys ...string) any {
 		}
 	}
 	return nil
+}
+
+// readStringPresent mirrors readString but reports whether any alias key was
+// present, so callers can distinguish a blank translated tier from a missing
+// field on older CPA payloads.
+func readStringPresent(record map[string]any, keys ...string) (string, bool) {
+	for _, key := range keys {
+		if raw, ok := record[key]; ok {
+			return readString(record, key), raw != nil
+		}
+	}
+	return "", false
 }
 
 func maxInt64(left, right int64) int64 {

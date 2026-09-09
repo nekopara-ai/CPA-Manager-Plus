@@ -1126,7 +1126,8 @@ export function RealtimeEventsPanel({
               const serviceTier = formatOptionalText(row.serviceTier);
               const requestServiceTier = formatOptionalText(row.requestServiceTier);
               const responseServiceTier = formatOptionalText(row.responseServiceTier);
-              const effectiveServiceTier =
+              const translatedServiceTier = formatOptionalText(row.effectiveServiceTier);
+              const displayServiceTier =
                 serviceTier !== '-'
                   ? serviceTier
                   : requestServiceTier !== '-'
@@ -1201,8 +1202,14 @@ export function RealtimeEventsPanel({
                         </span>
                         <span
                           className={`${styles.realtimeSettingValue} ${styles.realtimeServiceValue}`}
+                          title={t('monitoring.service_tier_breakdown', {
+                            request: requestServiceTier,
+                            effective: translatedServiceTier,
+                            response: responseServiceTier,
+                            defaultValue: `Requested ${requestServiceTier} · Translated ${translatedServiceTier} · Reported ${responseServiceTier}`,
+                          })}
                         >
-                          {effectiveServiceTier}
+                          {displayServiceTier}
                         </span>
                       </span>
                     </div>

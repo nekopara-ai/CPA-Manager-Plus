@@ -1207,8 +1207,9 @@ func eventFromExportedRecord(record map[string]any) (Event, bool, error) {
 	executorType := readString(record, "executor_type", "executorType")
 	providerSnapshot := readString(record, "auth_provider_snapshot", "authProviderSnapshot")
 	serviceTier := readString(record, "service_tier", "serviceTier")
-	reportedEffectiveServiceTier := readString(record, "effective_service_tier", "effectiveServiceTier")
-	if reportedEffectiveServiceTier == "" {
+	reportedEffectiveTierRaw, reportedEffectiveTierPresent := readStringPresent(record, "effective_service_tier", "effectiveServiceTier")
+	reportedEffectiveServiceTier := NormalizeReportedEffectiveServiceTier(reportedEffectiveTierRaw, reportedEffectiveTierPresent)
+	if !reportedEffectiveTierPresent {
 		// Exported CPAMP events already store their canonical billing tier in
 		// service_tier. Treat it as authoritative when importing the export.
 		reportedEffectiveServiceTier = serviceTier
@@ -1414,8 +1415,9 @@ func eventFromLegacyDetail(
 	executorType := readString(detail, "executor_type", "executorType")
 	providerSnapshot := readString(detail, "auth_provider_snapshot", "authProviderSnapshot")
 	serviceTier := readString(detail, "service_tier", "serviceTier")
-	reportedEffectiveServiceTier := readString(detail, "effective_service_tier", "effectiveServiceTier")
-	if reportedEffectiveServiceTier == "" && canonicalServiceTier {
+	reportedEffectiveTierRaw, reportedEffectiveTierPresent := readStringPresent(detail, "effective_service_tier", "effectiveServiceTier")
+	reportedEffectiveServiceTier := NormalizeReportedEffectiveServiceTier(reportedEffectiveTierRaw, reportedEffectiveTierPresent)
+	if !reportedEffectiveTierPresent && canonicalServiceTier {
 		// Wrapped CPAMP exports already project the canonical billing tier into
 		// service_tier. Direct CPA payloads use the same field for the client
 		// request, so only trust it for the wrapped export format.

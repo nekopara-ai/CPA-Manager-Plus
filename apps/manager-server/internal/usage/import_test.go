@@ -935,7 +935,7 @@ func TestNormalizeRawPrefersReportedEffectiveServiceTier(t *testing.T) {
 	}
 }
 
-func TestNormalizeRawEmptyEffectiveServiceTierUsesLegacyFallback(t *testing.T) {
+func TestNormalizeRawEmptyEffectiveServiceTierMeansStandardPriority(t *testing.T) {
 	payload := `{
 	  "timestamp": "2026-07-10T00:00:00Z",
 	  "executor_type": "codex",
@@ -950,6 +950,30 @@ func TestNormalizeRawEmptyEffectiveServiceTierUsesLegacyFallback(t *testing.T) {
 	if err != nil {
 		t.Fatalf("normalize raw: %v", err)
 	}
+	// CPA drops service_tier from the final outbound payload for standard
+	// priority calls, so a blank translated tier is authoritative for default,
+	// not a reason to reuse the client request tier.
+	if event.EffectiveServiceTier != "default" || event.ServiceTier != "default" {
+		t.Fatalf("effective/billing service tiers = %q/%q, want default/default", event.EffectiveServiceTier, event.ServiceTier)
+	}
+}
+
+func TestNormalizeRawMissingEffectiveServiceTierUsesLegacyFallback(t *testing.T) {
+	payload := `{
+	  "timestamp": "2026-07-10T00:00:00Z",
+	  "executor_type": "codex",
+	  "model": "gpt-5.6-sol",
+	  "service_tier": "auto",
+	  "response_service_tier": "default",
+	  "tokens": {"input_tokens": 1, "total_tokens": 1}
+	}`
+
+	event, err := NormalizeRaw([]byte(payload))
+	if err != nil {
+		t.Fatalf("normalize raw: %v", err)
+	}
+	// Older CPA payloads never report effective_service_tier, so the legacy
+	// request-tier fallback must stay unchanged for them.
 	if event.EffectiveServiceTier != "" || event.ServiceTier != "auto" {
 		t.Fatalf("effective/billing service tiers = %q/%q, want empty/auto", event.EffectiveServiceTier, event.ServiceTier)
 	}
