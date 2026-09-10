@@ -206,6 +206,7 @@ jobs:
           labels: ${{ steps.image-metadata.outputs.labels }}
           build-args: |
             VERSION=${{ needs.test.outputs.version }}
+            SOURCE_COMMIT=${{ needs.test.outputs.source_sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           provenance: mode=max
