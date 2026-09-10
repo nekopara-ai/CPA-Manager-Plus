@@ -29,6 +29,17 @@ jobs:
       UPSTREAM_REPOSITORY: seakee/CPA-Manager-Plus
 
     steps:
+      - name: Require workflow-capable sync credential
+        env:
+          SYNC_TOKEN: ${{ secrets.UPSTREAM_SYNC_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${SYNC_TOKEN}" ]]; then
+            echo '::error::Set UPSTREAM_SYNC_TOKEN to a repository-scoped token with Contents and Workflows read/write permissions. GITHUB_TOKEN cannot push upstream workflow changes.'
+            exit 1
+          fi
+
       - name: Disable inherited upstream publishing workflows
         env:
           GH_TOKEN: ${{ github.token }}
@@ -63,6 +74,7 @@ jobs:
         with:
           ref: main
           fetch-depth: 0
+          token: ${{ secrets.UPSTREAM_SYNC_TOKEN }}
 
       - name: Sync main from upstream
         shell: bash
@@ -132,6 +144,7 @@ jobs:
         with:
           ref: ${{ env.PATCH_BRANCH }}
           fetch-depth: 0
+          token: ${{ secrets.UPSTREAM_SYNC_TOKEN }}
 
       - name: Merge synchronized main into patched image branch
         shell: bash
@@ -145,6 +158,7 @@ jobs:
           git fetch --no-tags origin main
 
           source_sha="$(git rev-parse HEAD)"
+          pushed=false
           if git merge-base --is-ancestor origin/main HEAD; then
             echo "${PATCH_BRANCH} already contains origin/main"
           else
@@ -157,6 +171,14 @@ jobs:
 
             source_sha="$(git rev-parse HEAD)"
             git push origin "HEAD:refs/heads/${PATCH_BRANCH}"
+            pushed=true
+          fi
+
+          # The dedicated token triggers the patched branch's push build.
+          # Do not race that build with a duplicate workflow_dispatch run.
+          if [[ "${pushed}" == 'true' ]]; then
+            echo "Push build requested for ${source_sha}"
+            exit 0
           fi
 
           blocking_runs="$(
@@ -169,8 +191,7 @@ jobs:
               --jq '[.workflow_runs[] | select(.status != "completed" or .conclusion == "success")] | length'
           )"
           if [[ "${blocking_runs}" == "0" ]]; then
-            # Pushes made by GITHUB_TOKEN do not start another workflow. Use
-            # workflow_dispatch so every new source is built and failed runs
+            # With no new push, use workflow_dispatch so missing or failed runs
             # can be retried by the next synchronization.
             gh workflow run patched-image.yml \
               --repo "${GITHUB_REPOSITORY}" \
