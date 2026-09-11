@@ -29,17 +29,6 @@ jobs:
       UPSTREAM_REPOSITORY: seakee/CPA-Manager-Plus
 
     steps:
-      - name: Require workflow-capable sync credential
-        env:
-          SYNC_TOKEN: ${{ secrets.UPSTREAM_SYNC_TOKEN }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [[ -z "${SYNC_TOKEN}" ]]; then
-            echo '::error::Set UPSTREAM_SYNC_TOKEN to a repository-scoped token with Contents and Workflows read/write permissions. GITHUB_TOKEN cannot push upstream workflow changes.'
-            exit 1
-          fi
-
       - name: Disable inherited upstream publishing workflows
         env:
           GH_TOKEN: ${{ github.token }}
@@ -74,7 +63,44 @@ jobs:
         with:
           ref: main
           fetch-depth: 0
-          token: ${{ secrets.UPSTREAM_SYNC_TOKEN }}
+
+      - name: Prepare source merge helper
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > "${RUNNER_TEMP}/merge-fork-source.sh" <<'BASH'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          source_ref="$1"
+
+          if git merge-base --is-ancestor "${source_ref}" HEAD; then
+            echo "HEAD already contains ${source_ref}"
+            exit 0
+          fi
+
+          # Keep a merge commit even for fast-forwards so upstream ancestry is
+          # retained while each fork branch keeps its own workflow definitions.
+          if ! git merge --no-ff --no-commit "${source_ref}"; then
+            if ! git rev-parse -q --verify MERGE_HEAD >/dev/null; then
+              echo 'Merge failed before a merge state was created' >&2
+              exit 1
+            fi
+          fi
+
+          # GITHUB_TOKEN can push source changes, but cannot introduce workflow
+          # changes. Workflows are maintained separately in this fork.
+          git restore --source=HEAD --staged --worktree -- .github/workflows
+
+          if [[ -n "$(git diff --name-only --diff-filter=U)" ]]; then
+            echo 'Source merge has conflicts:' >&2
+            git diff --name-only --diff-filter=U >&2
+            git merge --abort
+            exit 1
+          fi
+
+          git diff --cached --exit-code HEAD -- .github/workflows
+          git commit --no-edit
+          BASH
 
       - name: Sync main from upstream
         shell: bash
@@ -90,12 +116,7 @@ jobs:
           if git merge-base --is-ancestor refs/remotes/upstream/main HEAD; then
             echo 'main already contains upstream/main'
           else
-            if ! git merge --no-edit refs/remotes/upstream/main; then
-              echo 'Automatic upstream merge into main has conflicts:' >&2
-              git diff --name-only --diff-filter=U >&2 || true
-              git merge --abort || true
-              exit 1
-            fi
+            bash "${RUNNER_TEMP}/merge-fork-source.sh" refs/remotes/upstream/main
 
             git fetch --no-tags origin \
               '+refs/heads/main:refs/remotes/origin/main'
@@ -144,7 +165,6 @@ jobs:
         with:
           ref: ${{ env.PATCH_BRANCH }}
           fetch-depth: 0
-          token: ${{ secrets.UPSTREAM_SYNC_TOKEN }}
 
       - name: Merge synchronized main into patched image branch
         shell: bash
@@ -158,27 +178,13 @@ jobs:
           git fetch --no-tags origin main
 
           source_sha="$(git rev-parse HEAD)"
-          pushed=false
           if git merge-base --is-ancestor origin/main HEAD; then
             echo "${PATCH_BRANCH} already contains origin/main"
           else
-            if ! git merge --no-edit origin/main; then
-              echo "Automatic merge into ${PATCH_BRANCH} has conflicts:" >&2
-              git diff --name-only --diff-filter=U >&2 || true
-              git merge --abort || true
-              exit 1
-            fi
+            bash "${RUNNER_TEMP}/merge-fork-source.sh" origin/main
 
             source_sha="$(git rev-parse HEAD)"
             git push origin "HEAD:refs/heads/${PATCH_BRANCH}"
-            pushed=true
-          fi
-
-          # The dedicated token triggers the patched branch's push build.
-          # Do not race that build with a duplicate workflow_dispatch run.
-          if [[ "${pushed}" == 'true' ]]; then
-            echo "Push build requested for ${source_sha}"
-            exit 0
           fi
 
           blocking_runs="$(
@@ -191,8 +197,8 @@ jobs:
               --jq '[.workflow_runs[] | select(.status != "completed" or .conclusion == "success")] | length'
           )"
           if [[ "${blocking_runs}" == "0" ]]; then
-            # With no new push, use workflow_dispatch so missing or failed runs
-            # can be retried by the next synchronization.
+            # GITHUB_TOKEN pushes do not trigger another workflow. Explicitly
+            # dispatch new sources and retry missing or failed builds.
             gh workflow run patched-image.yml \
               --repo "${GITHUB_REPOSITORY}" \
               --ref "${PATCH_BRANCH}" \
