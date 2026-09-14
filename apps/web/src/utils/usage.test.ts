@@ -969,6 +969,44 @@ describe('calculateCost model price preference', () => {
     expect(cost).toBeCloseTo(0.5);
   });
 
+  it('uses CPA auto after filtering priority without a Fast price surcharge', () => {
+    const detail = {
+      tokens: { input_tokens: 100_000 },
+      __modelName: 'gpt-5.6-sol',
+      provider: 'codex',
+      service_tier: 'priority',
+      request_service_tier: 'priority',
+      effective_service_tier: 'auto',
+      response_service_tier: 'default',
+    };
+    const prices = {
+      'gpt-5.6-sol': {
+        prompt: 1,
+        completion: 2,
+        cache: 0.5,
+        serviceTiers: [
+          {
+            mode: 'fast',
+            serviceTier: 'priority',
+            prompt: 3,
+            completion: 6,
+            cache: 1,
+            promptConfigured: true,
+            completionConfigured: true,
+          },
+        ],
+      },
+    };
+    expect(resolveBillingServiceTier(detail)).toBe('auto');
+    expect(calculateCost(detail, prices)).toBeCloseTo(0.1);
+    expect(calculateCost({ ...detail, effective_service_tier: 'priority' }, prices)).toBeCloseTo(
+      0.3
+    );
+    expect(calculateCost({ ...detail, effective_service_tier: undefined }, prices)).toBeCloseTo(
+      0.3
+    );
+  });
+
   it('keeps the response service tier for non-Codex billing', () => {
     const cost = calculateCost(
       {

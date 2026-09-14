@@ -53,7 +53,8 @@ type Event struct {
 	RequestServiceTier  string `json:"request_service_tier,omitempty"`
 	ResponseServiceTier string `json:"response_service_tier,omitempty"`
 	// EffectiveServiceTier is the final tier reported by CPA after translation
-	// and payload overrides. It is transient because ServiceTier is the
+	// and payload overrides or filters, including auto for a checked Codex
+	// request with its tier omitted. It is transient because ServiceTier is the
 	// canonical billing value persisted in the existing database column.
 	EffectiveServiceTier string `json:"-"`
 	CacheInputMode       string `json:"cache_input_mode,omitempty"`
@@ -243,10 +244,9 @@ func isCodexUsageContext(context CacheInputContext) bool {
 // Other providers and old CPA payloads retain the existing provider-aware
 // request/response fallback behavior.
 func ResolveEffectiveServiceTier(context CacheInputContext, reportedEffectiveTier, requestTier, legacyTier, responseTier string) string {
-	// CPA omits service_tier from the final outbound payload for standard-priority
-	// Codex calls, so an explicitly empty/whitespace translated tier means default.
-	// Treat it as authoritative instead of falling back to the client request tier,
-	// otherwise standard calls are billed/displayed as fast again.
+	// New CPA events report auto when a checked Codex request omits service_tier.
+	// Keep that value authoritative even if the client requested priority. Missing
+	// metadata in older events remains unknown and retains the legacy fallback.
 	if isCodexUsageContext(context) {
 		if tier := strings.TrimSpace(reportedEffectiveTier); tier != "" {
 			return tier

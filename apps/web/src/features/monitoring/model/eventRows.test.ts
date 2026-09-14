@@ -221,6 +221,22 @@ describe('buildEventRows', () => {
     expect(row.effectiveServiceTier).toBe('default');
   });
 
+  it('shows final auto while keeping the original priority request searchable', () => {
+    const [row] = buildRows({
+      provider: 'codex',
+      service_tier: 'priority',
+      request_service_tier: 'priority',
+      effective_service_tier: 'auto',
+      response_service_tier: 'default',
+    });
+    expect(row.serviceTier).toBe('auto');
+    expect(row.effectiveServiceTier).toBe('auto');
+    expect(row.requestServiceTier).toBe('priority');
+    expect(row.responseServiceTier).toBe('default');
+    expect(row.searchText).toContain('auto');
+    expect(row.searchText).toContain('priority');
+  });
+
   it('uses the analytics model as primary identity while keeping requested and resolved models searchable', () => {
     const [row] = buildRows({
       __modelName: 'deepseek-v4-flash',
