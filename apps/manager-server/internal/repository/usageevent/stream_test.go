@@ -531,13 +531,13 @@ func TestInsertBatchSelectsServiceTierByProviderSemantics(t *testing.T) {
 	for _, event := range recent {
 		byHash[event.EventHash] = event
 	}
-	if event := byHash["codex-tier"]; event.ServiceTier != "priority" || event.RequestServiceTier != "priority" || event.ResponseServiceTier != "default" {
+	if event := byHash[codex.EventHash]; event.ServiceTier != "priority" || event.RequestServiceTier != "priority" || event.ResponseServiceTier != "default" {
 		t.Fatalf("codex tiers = %q/%q/%q", event.ServiceTier, event.RequestServiceTier, event.ResponseServiceTier)
 	}
-	if event := byHash["openai-tier"]; event.ServiceTier != "default" || event.RequestServiceTier != "priority" || event.ResponseServiceTier != "default" {
+	if event := byHash[nonCodex.EventHash]; event.ServiceTier != "default" || event.RequestServiceTier != "priority" || event.ResponseServiceTier != "default" {
 		t.Fatalf("non-Codex tiers = %q/%q/%q", event.ServiceTier, event.RequestServiceTier, event.ResponseServiceTier)
 	}
-	if event := byHash["codex-effective-tier"]; event.ServiceTier != "priority" || event.RequestServiceTier != "auto" || event.ResponseServiceTier != "default" {
+	if event := byHash[overriddenCodex.EventHash]; event.ServiceTier != "priority" || event.RequestServiceTier != "auto" || event.ResponseServiceTier != "default" {
 		t.Fatalf("overridden Codex tiers = %q/%q/%q", event.ServiceTier, event.RequestServiceTier, event.ResponseServiceTier)
 	}
 }
@@ -853,7 +853,7 @@ func explainCompatibleUsageQueryPlan(t *testing.T, db *sql.DB, query string, arg
 
 func streamTestEvent(hash string, timestampMS int64, endpoint, model string) usage.Event {
 	return usage.Event{
-		EventHash:    hash,
+		EventHash:    canonicalTestHash(hash),
 		TimestampMS:  timestampMS,
 		Timestamp:    fmt.Sprintf("2026-01-01T00:00:%02dZ", timestampMS%60),
 		Model:        model,
