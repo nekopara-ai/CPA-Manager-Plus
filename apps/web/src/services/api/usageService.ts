@@ -1756,6 +1756,9 @@ export interface ProviderUsageMetadata {
 }
 
 export interface ResponseHeaderMetadata {
+  codex_turn_state?: {
+    response_length: number;
+  };
   quota?: ResponseHeaderQuotaMetadata;
   errors?: ResponseHeaderErrorMetadata;
   trace?: ResponseHeaderTraceMetadata;

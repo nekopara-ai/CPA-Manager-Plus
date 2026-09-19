@@ -1521,6 +1521,23 @@
   justify-content: center;
 }
 
+.realtimeTurnStateValue {
+  font-variant-numeric: tabular-nums;
+  justify-self: start;
+  border-radius: 4px;
+  padding: 0 4px;
+
+  &.realtimeTurnState292 {
+    background: var(--data-badge-success-bg);
+    color: var(--data-badge-success-text);
+  }
+
+  &.realtimeTurnState312 {
+    background: var(--data-badge-warning-bg);
+    color: var(--data-badge-warning-text);
+  }
+}
+
 .realtimeSettingsCell {
   display: inline-grid;
   grid-template-columns: max-content max-content;

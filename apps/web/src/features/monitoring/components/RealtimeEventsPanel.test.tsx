@@ -78,7 +78,11 @@ const t = ((key: string, options?: Record<string, unknown>) => {
     'monitoring.service_tier_short': 'Tier',
     'monitoring.request_service_tier_short': 'Requested tier',
     'monitoring.response_service_tier_short': 'Reported tier',
-    'monitoring.service_tier_breakdown': 'Requested {{request}} · Translated {{effective}} · Reported {{response}}',
+    'monitoring.codex_turn_state_label': 'Ticket',
+    'monitoring.codex_turn_state_response_hint': 'Response ticket length: {{length}} bytes',
+    'monitoring.codex_turn_state_unknown': 'Response ticket length not observed',
+    'monitoring.service_tier_breakdown':
+      'Requested {{request}} · Translated {{effective}} · Reported {{response}}',
     'monitoring.this_call_cost': 'Cost',
     'monitoring.this_call_usage': 'Usage',
     'monitoring.ttft_short': 'TTFT',
@@ -196,6 +200,36 @@ const renderPanel = (row: PanelRow, overrides: PanelOverrides = {}) =>
   );
 
 describe('RealtimeEventsPanel', () => {
+  it.each([292, 312, 428])('shows the observed response ticket length %i', (length) => {
+    const markup = renderPanel(
+      baseRow({
+        provider: 'codex',
+        responseMetadata: { codex_turn_state: { response_length: length } },
+      })
+    );
+    expect(markup).toContain(`data-codex-turn-state-length="${length}">${length}</span>`);
+    expect(markup).toContain(`Response ticket length: ${length} bytes`);
+    expect(markup.includes(styles.realtimeTurnState292)).toBe(length === 292);
+    expect(markup.includes(styles.realtimeTurnState312)).toBe(length === 312);
+  });
+
+  it('distinguishes an unobserved Codex ticket from providers without ticket support', () => {
+    const codex = renderPanel(baseRow({ provider: 'codex' }));
+    expect(codex).toContain('data-codex-turn-state-length="unknown">—</span>');
+    expect(codex).toContain('Response ticket length not observed');
+    expect(renderPanel(baseRow())).not.toContain('data-codex-turn-state-length');
+  });
+
+  it.each([0, -1, 2.5, Number.NaN])('does not display invalid ticket length %s', (length) => {
+    const markup = renderPanel(
+      baseRow({
+        executorType: 'CodexExecutor',
+        responseMetadata: { codex_turn_state: { response_length: length } },
+      })
+    );
+    expect(markup).toContain('data-codex-turn-state-length="unknown">—</span>');
+  });
+
   const expectedDate = new Date(baseRow().timestampMs).toLocaleDateString('en-US', {
     year: 'numeric',
     month: '2-digit',
@@ -225,9 +259,7 @@ describe('RealtimeEventsPanel', () => {
       })
     );
 
-    expect(markup).toContain(
-      `class="${styles.realtimeSettingsColumn}">Reasoning / Tier</th>`
-    );
+    expect(markup).toContain(`class="${styles.realtimeSettingsColumn}">Reasoning / Tier</th>`);
     expect(markup).toContain('>TPS</th>');
     expect(markup).toContain(styles.realtimeTpsColumn);
     expect(markup).toContain(styles.realtimeLatencyColumn);
@@ -397,11 +429,11 @@ describe('RealtimeEventsPanel', () => {
     expect(markup).toContain('<colgroup>');
     expect(markup.match(/<col\b/g)).toHaveLength(12);
     expect(
-      markup.match(new RegExp(`class="[^"]*${styles.realtimeSettingValue}[^"]*"[^>]*>-</span>`, 'g'))
+      markup.match(
+        new RegExp(`class="[^"]*${styles.realtimeSettingValue}[^"]*"[^>]*>-</span>`, 'g')
+      )
     ).toHaveLength(2);
-    expect(markup).toContain(
-      `class="${styles.realtimeSettingsColumn}">Reasoning / Tier</th>`
-    );
+    expect(markup).toContain(`class="${styles.realtimeSettingsColumn}">Reasoning / Tier</th>`);
     expect(markup).toContain('>TPS</th>');
     expect(markup).toContain('Success');
     expect(markup).toContain('>Elapsed</th>');
@@ -464,9 +496,7 @@ describe('RealtimeEventsPanel', () => {
       })
     );
 
-    expect(markup).toContain(
-      'title="deepseek-v4-flash(max)\nresolved-deepseek-v4-flash"'
-    );
+    expect(markup).toContain('title="deepseek-v4-flash(max)\nresolved-deepseek-v4-flash"');
     expect(markup.indexOf('>deepseek-v4-flash(max)</span>')).toBeLessThan(
       markup.indexOf('>resolved-deepseek-v4-flash</small>')
     );
@@ -547,9 +577,7 @@ describe('RealtimeEventsPanel', () => {
     expect(fullMarkup).toContain(`<details class="${styles.realtimeRequestMetadata}">`);
     expect(fullMarkup).toContain('<summary>Request metadata</summary>');
     expect(fullMarkup).toContain('Client IP: 192.0.2.10');
-    expect(fullMarkup).toContain(
-      'Forwarded chain (unverified): 203.0.113.5, 198.51.100.8'
-    );
+    expect(fullMarkup).toContain('Forwarded chain (unverified): 203.0.113.5, 198.51.100.8');
     expect(fullMarkup).toContain('User-Agent: test-client/1.0');
   });
 
@@ -613,7 +641,9 @@ describe('RealtimeEventsPanel', () => {
     expect(markup).toContain('>Cache Creation</span><span class=');
     expect(markup).toContain('>151.0K</span>');
     expect(markup).toContain('>1.0K</span>');
-    expect(markup).toContain('aria-label="Total: 33, Input: 152.6K, Output: 20, Reasoning: 3, Cached: 0, Cache Read: 151.0K, Cache Creation: 1.0K"');
+    expect(markup).toContain(
+      'aria-label="Total: 33, Input: 152.6K, Output: 20, Reasoning: 3, Cached: 0, Cache Read: 151.0K, Cache Creation: 1.0K"'
+    );
     expect(markup).toContain('tabindex="0"');
   });
 

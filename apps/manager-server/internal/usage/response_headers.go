@@ -11,15 +11,22 @@ import (
 )
 
 type ResponseHeaderMetadata struct {
-	Quota         *HeaderQuotaMetadata      `json:"quota,omitempty"`
-	Errors        *HeaderErrorMetadata      `json:"errors,omitempty"`
-	Trace         *HeaderTraceMetadata      `json:"trace,omitempty"`
-	Routing       *HeaderRoutingMetadata    `json:"routing,omitempty"`
-	Response      *HeaderResponseMetadata   `json:"response,omitempty"`
-	Providers     *HeaderProviderMetadata   `json:"providers,omitempty"`
-	RateLimit     *HeaderRateLimitMetadata  `json:"rate_limit,omitempty"`
-	DataPolicy    *HeaderDataPolicyMetadata `json:"data_policy,omitempty"`
-	ProviderUsage *ProviderUsageMetadata    `json:"provider_usage,omitempty"`
+	CodexTurnState *HeaderCodexTurnStateMetadata `json:"codex_turn_state,omitempty"`
+	Quota          *HeaderQuotaMetadata          `json:"quota,omitempty"`
+	Errors         *HeaderErrorMetadata          `json:"errors,omitempty"`
+	Trace          *HeaderTraceMetadata          `json:"trace,omitempty"`
+	Routing        *HeaderRoutingMetadata        `json:"routing,omitempty"`
+	Response       *HeaderResponseMetadata       `json:"response,omitempty"`
+	Providers      *HeaderProviderMetadata       `json:"providers,omitempty"`
+	RateLimit      *HeaderRateLimitMetadata      `json:"rate_limit,omitempty"`
+	DataPolicy     *HeaderDataPolicyMetadata     `json:"data_policy,omitempty"`
+	ProviderUsage  *ProviderUsageMetadata        `json:"provider_usage,omitempty"`
+}
+
+// HeaderCodexTurnStateMetadata describes the header observed on this response.
+// Its length does not establish that a ticket was stored, injected, or is still valid.
+type HeaderCodexTurnStateMetadata struct {
+	ResponseLength int `json:"response_length"`
 }
 
 type HeaderQuotaMetadata struct {
@@ -136,14 +143,15 @@ func ParseResponseHeaderMetadata(raw any, base time.Time) *ResponseHeaderMetadat
 	}
 
 	metadata := &ResponseHeaderMetadata{
-		Quota:      parseQuotaHeaders(headers, base),
-		Errors:     parseErrorHeaders(headers, base),
-		Trace:      parseTraceHeaders(headers),
-		Routing:    parseRoutingHeaders(headers),
-		Response:   parseResponseShapeHeaders(headers),
-		Providers:  parseProviderHeaders(headers),
-		RateLimit:  parseRateLimitHeaders(headers),
-		DataPolicy: parseDataPolicyHeaders(headers),
+		CodexTurnState: parseCodexTurnStateHeaders(headers),
+		Quota:          parseQuotaHeaders(headers, base),
+		Errors:         parseErrorHeaders(headers, base),
+		Trace:          parseTraceHeaders(headers),
+		Routing:        parseRoutingHeaders(headers),
+		Response:       parseResponseShapeHeaders(headers),
+		Providers:      parseProviderHeaders(headers),
+		RateLimit:      parseRateLimitHeaders(headers),
+		DataPolicy:     parseDataPolicyHeaders(headers),
 	}
 	if metadata.isEmpty() {
 		return nil
@@ -355,6 +363,9 @@ func sanitizeResponseHeaderMetadata(metadata *ResponseHeaderMetadata) {
 	if metadata == nil {
 		return
 	}
+	if metadata.CodexTurnState != nil && metadata.CodexTurnState.ResponseLength <= 0 {
+		metadata.CodexTurnState = nil
+	}
 	if metadata.Quota != nil {
 		metadata.Quota.PlanType = normalizeHeaderValue(metadata.Quota.PlanType)
 		metadata.Quota.ActiveLimit = normalizeHeaderValue(metadata.Quota.ActiveLimit)
@@ -463,7 +474,8 @@ func sanitizeResponseHeaderMetadata(metadata *ResponseHeaderMetadata) {
 
 func (m *ResponseHeaderMetadata) isEmpty() bool {
 	return m == nil ||
-		(m.Quota == nil &&
+		(m.CodexTurnState == nil &&
+			m.Quota == nil &&
 			m.Errors == nil &&
 			m.Trace == nil &&
 			m.Routing == nil &&
@@ -533,7 +545,8 @@ func isResponseHeaderAllowed(key string) bool {
 		return false
 	}
 	switch key {
-	case "x-codex-plan-type",
+	case "x-codex-turn-state",
+		"x-codex-plan-type",
 		"x-codex-active-limit",
 		"x-codex-rate-limit-reached-type",
 		"x-codex-credits-balance",
@@ -591,6 +604,14 @@ func isResponseHeaderAllowed(key string) bool {
 
 func isSafeTokenRateLimitHeader(key string) bool {
 	return key == "x-ratelimit-limit-tokens" || key == "x-ratelimit-remaining-tokens"
+}
+
+func parseCodexTurnStateHeaders(headers map[string][]string) *HeaderCodexTurnStateMetadata {
+	state := headerFirst(headers, "x-codex-turn-state")
+	if state == "" || strings.EqualFold(state, "[redacted]") {
+		return nil
+	}
+	return &HeaderCodexTurnStateMetadata{ResponseLength: len(state)}
 }
 
 func headerValues(raw any) []string {

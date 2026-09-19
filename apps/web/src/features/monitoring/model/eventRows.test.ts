@@ -41,6 +41,16 @@ const buildRows = (
   );
 
 describe('buildEventRows', () => {
+  it('keeps the response ticket observation attached to its credential and model', () => {
+    const [row] = buildRows({
+      provider: 'codex',
+      response_metadata: { codex_turn_state: { response_length: 292 } },
+    });
+    expect(row.authIndex).toBe('auth-1');
+    expect(row.model).toBe('gpt-5.4');
+    expect(row.responseMetadata?.codex_turn_state?.response_length).toBe(292);
+  });
+
   it('preserves persisted account identity fields before display enrichment', () => {
     const [row] = buildRows({
       account_snapshot: '',

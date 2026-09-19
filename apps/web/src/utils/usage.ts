@@ -87,6 +87,9 @@ export interface UsageResponseHeaderQuotaWindow {
 }
 
 export interface UsageResponseHeaderMetadata {
+  codex_turn_state?: {
+    response_length: number;
+  };
   quota?: {
     plan_type?: string;
     active_limit?: string;

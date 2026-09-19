@@ -45,8 +45,12 @@ func TestWriteCompatibleUsageMatchesBuildPayload(t *testing.T) {
 	events[3].Failed = true
 	events[3].FailStatusCode = 429
 	events[3].FailSummary = "rate limited"
+	usage.AttachResponseHeaderMetadata(&events[2], &usage.ResponseHeaderMetadata{
+		CodexTurnState: &usage.HeaderCodexTurnStateMetadata{ResponseLength: 292},
+	})
 	usage.AttachResponseHeaderMetadata(&events[3], &usage.ResponseHeaderMetadata{
-		Trace: &usage.HeaderTraceMetadata{PrimaryTraceID: "trace-stream"},
+		CodexTurnState: &usage.HeaderCodexTurnStateMetadata{ResponseLength: 312},
+		Trace:          &usage.HeaderTraceMetadata{PrimaryTraceID: "trace-stream"},
 	})
 	if _, err := repo.InsertBatch(context.Background(), events); err != nil {
 		t.Fatalf("insert events: %v", err)
@@ -75,6 +79,9 @@ func TestWriteCompatibleUsageMatchesBuildPayload(t *testing.T) {
 	}
 	if !reflect.DeepEqual(actual, expected) {
 		t.Fatalf("streamed payload mismatch\nactual: %#v\nexpected: %#v", actual, expected)
+	}
+	if !strings.Contains(output.String(), `"response_length":292`) || !strings.Contains(output.String(), `"response_length":312`) {
+		t.Fatal("compatible usage payload lost ticket lengths")
 	}
 }
 

@@ -40,6 +40,7 @@ describe('buildUsageDetailsFromAnalyticsEvents', () => {
         auth_provider_snapshot: 'codex',
         auth_project_id_snapshot: 'project-1',
         reasoning_effort: 'medium',
+        response_metadata: { codex_turn_state: { response_length: 292 } },
         input_tokens: 10,
         output_tokens: 5,
         cached_tokens: 0,
@@ -68,6 +69,7 @@ describe('buildUsageDetailsFromAnalyticsEvents', () => {
       x_forwarded_for: '203.0.113.5, 198.51.100.8',
       user_agent: 'test-client/1.0',
       reasoning_effort: 'medium',
+      response_metadata: { codex_turn_state: { response_length: 292 } },
       latency_ms: 123,
       ttft_ms: 45,
       tokens: {

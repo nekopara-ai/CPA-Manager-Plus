@@ -1127,6 +1127,19 @@ export function RealtimeEventsPanel({
               const requestServiceTier = formatOptionalText(row.requestServiceTier);
               const responseServiceTier = formatOptionalText(row.responseServiceTier);
               const translatedServiceTier = formatOptionalText(row.effectiveServiceTier);
+              const observedTurnStateLength =
+                row.responseMetadata?.codex_turn_state?.response_length;
+              const turnStateLength =
+                typeof observedTurnStateLength === 'number' &&
+                Number.isSafeInteger(observedTurnStateLength) &&
+                observedTurnStateLength > 0
+                  ? observedTurnStateLength
+                  : null;
+              const showTurnState =
+                turnStateLength !== null ||
+                [row.provider, row.providerIdentity, row.executorType].some((value) =>
+                  value?.toLowerCase().includes('codex')
+                );
               const displayServiceTier =
                 serviceTier !== '-'
                   ? serviceTier
@@ -1212,6 +1225,35 @@ export function RealtimeEventsPanel({
                           {displayServiceTier}
                         </span>
                       </span>
+                      {showTurnState ? (
+                        <span className={styles.realtimeSettingLine}>
+                          <span className={styles.realtimeSettingLabel}>
+                            {t('monitoring.codex_turn_state_label')}
+                          </span>
+                          <span
+                            className={[
+                              styles.realtimeSettingValue,
+                              styles.realtimeTurnStateValue,
+                              turnStateLength === 292
+                                ? styles.realtimeTurnState292
+                                : turnStateLength === 312
+                                  ? styles.realtimeTurnState312
+                                  : '',
+                            ]
+                              .filter(Boolean)
+                              .join(' ')}
+                            title={t(
+                              turnStateLength === null
+                                ? 'monitoring.codex_turn_state_unknown'
+                                : 'monitoring.codex_turn_state_response_hint',
+                              { length: turnStateLength }
+                            )}
+                            data-codex-turn-state-length={turnStateLength ?? 'unknown'}
+                          >
+                            {turnStateLength ?? '—'}
+                          </span>
+                        </span>
+                      ) : null}
                     </div>
                   </td>
                   <td className={styles.realtimeCenteredColumn}>
