@@ -305,10 +305,13 @@ const getRealtimeDurationToneClass = (value: number | null | undefined) => {
   return styles.goodText;
 };
 
-// Keep the existing number coloring: 292 was the historic success case, 312 the
-// historic warning case. Only the numeric value is tinted; the label is not.
+// Ticket shapes are subscription-specific observations, not model-quality proof.
 const turnStateLengthColorClass = (value: number | null) =>
-  value === 292 ? styles.realtimeTurnState292 : value === 312 ? styles.realtimeTurnState312 : '';
+  value === 292 || value === 332
+    ? styles.realtimeTurnState292
+    : value === 312 || value === 356
+      ? styles.realtimeTurnState312
+      : '';
 
 const formatRealtimeDateParts = (timestampMs: number, locale: string) => {
   const date = new Date(timestampMs);

@@ -47,6 +47,7 @@ type AuthFileModelApiItem = {
   owned_by?: string;
 };
 export type AuthFileFieldsPatch = {
+  codex_turn_ticket_plan?: string | null;
   expired?: string;
   last_refresh?: string;
   prefix?: string;

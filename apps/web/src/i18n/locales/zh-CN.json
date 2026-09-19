@@ -1585,7 +1585,17 @@
     "value_output_tokens": "输出 Token",
     "value_recent": "最近出现",
     "value_source_monitoring": "请求监控",
-    "value_source_recent": "最近请求"
+    "value_source_recent": "最近请求",
+    "turn_ticket_plan": "票据套餐规则",
+    "turn_ticket_plan_source": "规则来源",
+    "turn_ticket_plan_hint": "{{plan}} · {{source}}",
+    "turn_ticket_plan_source_manual": "账号手动设置",
+    "turn_ticket_plan_source_id_token": "ID 令牌套餐声明",
+    "turn_ticket_plan_source_access_token": "访问令牌套餐声明",
+    "turn_ticket_plan_source_config": "默认配置（未确认套餐）",
+    "turn_ticket_plan_auto": "自动（按当前 workspace 的令牌声明）",
+    "turn_ticket_plan_config_hint": "仅控制票据规则，不更改订阅或启用账号。仅导入访问令牌的账号可手动选择 Team。保存规则变更会清除旧票据并重新采集。",
+    "config_error_ticket_plan": "请选择自动、Pro 或 Team"
   },
   "auth_files": {
     "upload_button": "上传文件",

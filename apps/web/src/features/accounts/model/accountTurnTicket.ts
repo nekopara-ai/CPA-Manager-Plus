@@ -29,6 +29,8 @@ export interface AccountTurnTicketModelSummary {
 }
 
 export interface AccountTurnTicketSummary {
+  plan?: string;
+  planSource?: string;
   applicable: boolean;
   configured: boolean;
   enabled: boolean;
@@ -135,6 +137,8 @@ export const resolveAccountTurnTicket = (
 
   return {
     applicable: true,
+    plan: readString(raw.plan),
+    planSource: readString(raw.plan_source),
     configured: readBoolean(raw.configured, false),
     enabled: readBoolean(raw.enabled, false),
     harvesterActive: readBoolean(raw.harvester_active ?? raw.harvesterActive, false),

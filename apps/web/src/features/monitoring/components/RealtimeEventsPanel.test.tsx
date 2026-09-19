@@ -225,7 +225,7 @@ const renderPanel = (row: PanelRow, overrides: PanelOverrides = {}) =>
   );
 
 describe('RealtimeEventsPanel', () => {
-  it.each([292, 312, 428])('shows only the observed response ticket length %i', (length) => {
+  it.each([292, 312, 332, 356, 428])('shows only the observed response ticket length %i', (length) => {
     const markup = renderPanel(
       baseRow({
         provider: 'codex',
@@ -242,8 +242,8 @@ describe('RealtimeEventsPanel', () => {
     expect(markup).toContain(`Response ticket length: ${length} bytes`);
     expect(markup).not.toContain('data-codex-turn-state-request');
     expect(markup).not.toContain('Injected');
-    expect(markup.includes(styles.realtimeTurnState292)).toBe(length === 292);
-    expect(markup.includes(styles.realtimeTurnState312)).toBe(length === 312);
+    expect(markup.includes(styles.realtimeTurnState292)).toBe(length === 292 || length === 332);
+    expect(markup.includes(styles.realtimeTurnState312)).toBe(length === 312 || length === 356);
   });
 
   it.each(['cache', 'passthrough', 'none'] as const)(

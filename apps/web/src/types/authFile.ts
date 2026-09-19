@@ -51,6 +51,8 @@ export interface CodexTurnTicketModelSnapshot {
 }
 
 export interface CodexTurnTicketCredentialSnapshot {
+  plan?: string;
+  plan_source?: string;
   configured?: boolean;
   enabled?: boolean;
   harvester_active?: boolean;

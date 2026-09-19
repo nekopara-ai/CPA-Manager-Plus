@@ -1587,7 +1587,17 @@
     "value_output_tokens": "Output tokens",
     "value_recent": "Last seen",
     "value_source_monitoring": "Request monitoring",
-    "value_source_recent": "Recent requests"
+    "value_source_recent": "Recent requests",
+    "turn_ticket_plan": "Ticket plan",
+    "turn_ticket_plan_source": "Policy source",
+    "turn_ticket_plan_hint": "{{plan}} · {{source}}",
+    "turn_ticket_plan_source_manual": "Account override",
+    "turn_ticket_plan_source_id_token": "ID token plan hint",
+    "turn_ticket_plan_source_access_token": "Access token plan hint",
+    "turn_ticket_plan_source_config": "Default configuration (plan unconfirmed)",
+    "turn_ticket_plan_auto": "Automatic (selected workspace token hint)",
+    "turn_ticket_plan_config_hint": "Controls ticket policy only; does not change the subscription or enable the account. Imported access-token accounts can select Team manually. Saving a policy change clears old tickets for reacquisition.",
+    "config_error_ticket_plan": "Select automatic, Pro or Team"
   },
   "auth_files": {
     "upload_button": "Upload File",
