@@ -79,6 +79,23 @@ const t = ((key: string, options?: Record<string, unknown>) => {
     'monitoring.request_service_tier_short': 'Requested tier',
     'monitoring.response_service_tier_short': 'Reported tier',
     'monitoring.codex_turn_state_label': 'Ticket',
+    'monitoring.codex_turn_state_injected': 'Injected',
+    'monitoring.codex_turn_state_passthrough': 'Passthrough',
+    'monitoring.codex_turn_state_none': 'Not carried',
+    'monitoring.codex_turn_state_response': 'Response',
+    'monitoring.codex_turn_state_injected_hint':
+      'Injected a {{length}}-byte ticket from the local cache',
+    'monitoring.codex_turn_state_passthrough_hint': 'Passed through a {{length}}-byte ticket',
+    'monitoring.codex_turn_state_none_hint': 'No ticket was attached',
+    'monitoring.codex_turn_state_ws_injected': 'Connection injected',
+    'monitoring.codex_turn_state_ws_passthrough': 'Connection passthrough',
+    'monitoring.codex_turn_state_ws_none': 'Connection not carried',
+    'monitoring.codex_turn_state_ws_injected_hint':
+      'Injected during the WebSocket handshake; reused connections keep that handshake',
+    'monitoring.codex_turn_state_ws_passthrough_hint':
+      'Passthrough during the WebSocket handshake; reused connections keep that handshake',
+    'monitoring.codex_turn_state_ws_none_hint':
+      'No ticket during the WebSocket handshake; reused connections keep that handshake',
     'monitoring.codex_turn_state_response_hint': 'Response ticket length: {{length}} bytes',
     'monitoring.codex_turn_state_unknown': 'Response ticket length not observed',
     'monitoring.service_tier_breakdown':
@@ -215,27 +232,210 @@ describe('RealtimeEventsPanel', () => {
         responseMetadata: { codex_turn_state: { response_length: length } },
       })
     );
-    expect(markup).toContain(`data-codex-turn-state-length="${length}">${length}</span>`);
+    // Legacy response-only records keep the response value visible but the
+    // request badge must never claim injection.
+    expect(markup).toContain(`data-codex-turn-state-request-state="unknown"`);
+    expect(markup).toContain('data-codex-turn-state-request-length="unknown"');
+    expect(markup).toContain(`data-codex-turn-state-response-length="${length}"`);
     expect(markup).toContain(`Response ticket length: ${length} bytes`);
+    expect(markup).not.toContain('monitoring.codex_turn_state_injected');
     expect(markup.includes(styles.realtimeTurnState292)).toBe(length === 292);
     expect(markup.includes(styles.realtimeTurnState312)).toBe(length === 312);
   });
 
-  it('distinguishes an unobserved Codex ticket from providers without ticket support', () => {
-    const codex = renderPanel(baseRow({ provider: 'codex' }));
-    expect(codex).toContain('data-codex-turn-state-length="unknown">—</span>');
-    expect(codex).toContain('Response ticket length not observed');
-    expect(renderPanel(baseRow())).not.toContain('data-codex-turn-state-length');
+  it('shows an injected request ticket from the cache', () => {
+    const markup = renderPanel(
+      baseRow({
+        provider: 'codex',
+        responseMetadata: {
+          codex_turn_state: { request_length: 292, request_source: 'cache' },
+        },
+      })
+    );
+    expect(markup).toContain('data-codex-turn-state-request-state="injected"');
+    expect(markup).toContain('data-codex-turn-state-request-length="292"');
+    expect(markup).toContain('Injected');
+    expect(markup).toContain('>292</span>');
+    expect(markup).not.toContain('data-codex-turn-state-response-length');
+    expect(markup.includes(styles.realtimeTurnState292)).toBe(true);
   });
 
-  it.each([0, -1, 2.5, Number.NaN])('does not display invalid ticket length %s', (length) => {
+  it('shows a passthrough request ticket without calling it injected', () => {
+    const markup = renderPanel(
+      baseRow({
+        provider: 'codex',
+        responseMetadata: {
+          codex_turn_state: { request_length: 428, request_source: 'passthrough' },
+        },
+      })
+    );
+    expect(markup).toContain('data-codex-turn-state-request-state="passthrough"');
+    expect(markup).toContain('Passthrough');
+    expect(markup).toContain('>428</span>');
+    expect(markup).not.toContain('Injected');
+  });
+
+  it('labels a WebSocket handshake injection as connection specific', () => {
+    const markup = renderPanel(
+      baseRow({
+        provider: 'codex',
+        responseMetadata: {
+          codex_turn_state: {
+            request_length: 292,
+            request_source: 'cache',
+            request_scope: 'websocket_handshake',
+          },
+        },
+      })
+    );
+    expect(markup).toContain('data-codex-turn-state-request-scope="websocket_handshake"');
+    expect(markup).toContain('Connection injected');
+    expect(markup).toContain('reused connections keep that handshake');
+    expect(markup).toContain('>292</span>');
+  });
+
+  it.each(['passthrough', 'none'] as const)(
+    'labels a WebSocket handshake %s as connection specific',
+    (source) => {
+      const markup = renderPanel(
+        baseRow({
+          provider: 'codex',
+          responseMetadata: {
+            codex_turn_state: {
+              request_length: source === 'none' ? 0 : 312,
+              request_source: source,
+              request_scope: 'websocket_handshake',
+            },
+          },
+        })
+      );
+      expect(markup).toContain('data-codex-turn-state-request-scope="websocket_handshake"');
+      expect(markup).toContain(
+        source === 'none' ? 'Connection not carried' : 'Connection passthrough'
+      );
+      expect(markup).not.toContain('Injected');
+    }
+  );
+
+  it('does not claim injection for an unsupported request scope', () => {
+    const markup = renderPanel(
+      baseRow({
+        provider: 'codex',
+        responseMetadata: {
+          codex_turn_state: {
+            request_length: 292,
+            request_source: 'cache',
+            // Simulates a future/unrecognized scope from a newer backend.
+            request_scope: 'something_else' as never,
+          },
+        },
+      })
+    );
+    expect(markup).toContain('data-codex-turn-state-request-state="unknown"');
+    expect(markup).toContain('data-codex-turn-state-request-scope="unknown"');
+    expect(markup).not.toContain('Injected');
+  });
+
+  it('treats an omitted scope as a regular HTTP request', () => {
+    const markup = renderPanel(
+      baseRow({
+        provider: 'codex',
+        responseMetadata: {
+          codex_turn_state: { request_length: 292, request_source: 'cache' },
+        },
+      })
+    );
+    expect(markup).toContain('data-codex-turn-state-request-scope="http"');
+    expect(markup).toContain('Injected');
+  });
+
+  it('shows an explicit none ticket as not carried', () => {
+    const markup = renderPanel(
+      baseRow({
+        provider: 'codex',
+        responseMetadata: {
+          codex_turn_state: { request_length: 0, request_source: 'none' },
+        },
+      })
+    );
+    expect(markup).toContain('data-codex-turn-state-request-state="none"');
+    expect(markup).toContain('Not carried');
+    expect(markup).not.toContain('Injected');
+  });
+
+  it('shows request and response observations side by side without conflating them', () => {
+    const markup = renderPanel(
+      baseRow({
+        provider: 'codex',
+        responseMetadata: {
+          codex_turn_state: {
+            request_length: 312,
+            request_source: 'cache',
+            response_length: 292,
+          },
+        },
+      })
+    );
+    expect(markup).toContain('data-codex-turn-state-request-state="injected"');
+    expect(markup).toContain('data-codex-turn-state-request-length="312"');
+    expect(markup).toContain('data-codex-turn-state-response-length="292"');
+    expect(markup).toContain('Injected');
+    expect(markup).toContain('Response');
+  });
+
+  it('never infers an injected request from a response length alone', () => {
+    const markup = renderPanel(
+      baseRow({
+        provider: 'codex',
+        responseMetadata: { codex_turn_state: { response_length: 292 } },
+      })
+    );
+    expect(markup).toContain('data-codex-turn-state-request-state="unknown"');
+    expect(markup).not.toContain('data-codex-turn-state-request-length="292"');
+    expect(markup).not.toContain('Injected');
+  });
+
+  it('distinguishes an unobserved Codex ticket from providers without ticket support', () => {
+    const codex = renderPanel(baseRow({ provider: 'codex' }));
+    expect(codex).toContain('data-codex-turn-state-request-state="unknown"');
+    expect(codex).toContain('Response ticket length not observed');
+    expect(renderPanel(baseRow())).not.toContain('data-codex-turn-state-request-state');
+  });
+
+  it('ignores inconsistent or invalid request observations', () => {
+    const cases: Array<Record<string, unknown>> = [
+      { request_length: 0, request_source: 'cache' },
+      { request_length: 292, request_source: 'none' },
+      { request_length: 292 },
+      { request_source: 'cache' },
+      { request_length: -1, request_source: 'cache' },
+      { request_length: 2.5, request_source: 'cache' },
+      { request_length: 65537, request_source: 'cache' },
+    ];
+    for (const codexTurnState of cases) {
+      const markup = renderPanel(
+        baseRow({
+          executorType: 'CodexExecutor',
+          responseMetadata: { codex_turn_state: codexTurnState },
+        })
+      );
+      expect(markup).toContain('data-codex-turn-state-request-state="unknown"');
+      expect(markup).toContain('data-codex-turn-state-request-length="unknown"');
+      expect(markup).not.toContain('Injected');
+      expect(markup).not.toContain('Passthrough');
+      expect(markup).not.toContain('Not carried');
+    }
+  });
+
+  it.each([0, -1, 2.5, Number.NaN])('does not display invalid response length %s', (length) => {
     const markup = renderPanel(
       baseRow({
         executorType: 'CodexExecutor',
         responseMetadata: { codex_turn_state: { response_length: length } },
       })
     );
-    expect(markup).toContain('data-codex-turn-state-length="unknown">—</span>');
+    expect(markup).toContain('data-codex-turn-state-request-state="unknown"');
+    expect(markup).not.toContain('data-codex-turn-state-response-length');
   });
 
   const expectedDate = new Date(baseRow().timestampMs).toLocaleDateString('en-US', {
