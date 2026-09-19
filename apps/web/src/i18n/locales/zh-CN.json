@@ -2673,7 +2673,7 @@
     "codex_turn_state_ws_passthrough_hint": "该 WebSocket 连接在握手时透传了 {{length}} 字节的票据。复用连接会一直沿用该握手，而不是每条消息都重新发送请求头。",
     "codex_turn_state_ws_none_hint": "该 WebSocket 连接在握手时未携带票据。复用连接会一直沿用该握手，而不是每条消息都重新发送请求头。",
     "codex_turn_state_response_hint": "该次响应返回的 X-Codex-Turn-State 长度为 {{length}} 字节，不代表已注入或当前仍有效。",
-    "codex_turn_state_unknown": "未观测到请求票据：可能没有该请求观测，或记录早于此功能启用。",
+    "codex_turn_state_unknown": "未观测到响应票据长度：可能没有返回该响应头，或记录早于此功能启用。",
     "service_tier_breakdown": "请求 {{request}} · 转发 {{effective}} · 响应 {{response}}",
     "executor_type": "执行器类型",
     "executor_type_short": "执行器",

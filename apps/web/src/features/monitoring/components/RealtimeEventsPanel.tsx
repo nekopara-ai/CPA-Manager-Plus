@@ -20,10 +20,7 @@ import {
 import { MonitoringPanel } from '@/features/monitoring/components/MonitoringPanel';
 import { formatPercent } from '@/features/monitoring/components/accountOverviewPresentation';
 import { buildRealtimeSourceDisplay } from '@/features/monitoring/realtimeSourceDisplay';
-import {
-  resolveCodexTurnState,
-  type CodexTurnStateObservation,
-} from '@/features/monitoring/model/codexTurnState';
+import { resolveCodexTurnState } from '@/features/monitoring/model/codexTurnState';
 import type { MonitoringEventRow } from '@/features/monitoring/hooks/useMonitoringData';
 import type { AccountDisplayMode } from '@/features/monitoring/accountOverviewState';
 import { useNotificationStore } from '@/stores';
@@ -312,59 +309,6 @@ const getRealtimeDurationToneClass = (value: number | null | undefined) => {
 // historic warning case. Only the numeric value is tinted; the label is not.
 const turnStateLengthColorClass = (value: number | null) =>
   value === 292 ? styles.realtimeTurnState292 : value === 312 ? styles.realtimeTurnState312 : '';
-
-const turnStateRequestHint = (state: CodexTurnStateObservation, t: TFunction): string => {
-  const ws = state.requestScope === 'websocket_handshake';
-  if (state.requestState === 'injected') {
-    return ws
-      ? t('monitoring.codex_turn_state_ws_injected_hint', {
-          length: state.requestLength,
-          defaultValue: `This WebSocket connection injected an ${state.requestLength}-byte ticket during the handshake. Reused connections keep that handshake rather than sending a new header per message.`,
-        })
-      : t('monitoring.codex_turn_state_injected_hint', {
-          length: state.requestLength,
-          defaultValue: `Injected an ${state.requestLength}-byte ticket from the local cache.`,
-        });
-  }
-  if (state.requestState === 'passthrough') {
-    return ws
-      ? t('monitoring.codex_turn_state_ws_passthrough_hint', {
-          length: state.requestLength,
-          defaultValue: `This WebSocket connection passed through an ${state.requestLength}-byte ticket during the handshake. Reused connections keep that handshake rather than sending a new header per message.`,
-        })
-      : t('monitoring.codex_turn_state_passthrough_hint', {
-          length: state.requestLength,
-          defaultValue: `Passed through an ${state.requestLength}-byte ticket.`,
-        });
-  }
-  if (state.requestState === 'none') {
-    return ws
-      ? t('monitoring.codex_turn_state_ws_none_hint', {
-          defaultValue:
-            'This WebSocket connection carried no ticket during the handshake. Reused connections keep that handshake rather than sending a new header per message.',
-        })
-      : t('monitoring.codex_turn_state_none_hint', {
-          defaultValue: 'No ticket was attached to this request.',
-        });
-  }
-  return t('monitoring.codex_turn_state_unknown');
-};
-
-const turnStateRequestTextKey = (state: CodexTurnStateObservation): string => {
-  const ws = state.requestScope === 'websocket_handshake';
-  if (state.requestState === 'injected') {
-    return ws ? 'monitoring.codex_turn_state_ws_injected' : 'monitoring.codex_turn_state_injected';
-  }
-  if (state.requestState === 'passthrough') {
-    return ws
-      ? 'monitoring.codex_turn_state_ws_passthrough'
-      : 'monitoring.codex_turn_state_passthrough';
-  }
-  if (state.requestState === 'none') {
-    return ws ? 'monitoring.codex_turn_state_ws_none' : 'monitoring.codex_turn_state_none';
-  }
-  return 'monitoring.codex_turn_state_unknown';
-};
 
 const formatRealtimeDateParts = (timestampMs: number, locale: string) => {
   const date = new Date(timestampMs);
@@ -1271,7 +1215,9 @@ export function RealtimeEventsPanel({
                       ) : null}
                       {hasResponseModelMismatch ? (
                         <div className={styles.realtimeModelResponseLine}>
-                          <small className={`${styles.monoCell} ${styles.realtimeModelResponseText}`}>
+                          <small
+                            className={`${styles.monoCell} ${styles.realtimeModelResponseText}`}
+                          >
                             {`↳ ${responseModel}`}
                           </small>
                           <span className={styles.realtimeModelMismatchBadge}>
@@ -1316,39 +1262,15 @@ export function RealtimeEventsPanel({
                           </span>
                           <span
                             className={`${styles.realtimeSettingValue} ${styles.realtimeTurnStateValue}`}
-                            title={turnStateRequestHint(turnState, t)}
-                            data-codex-turn-state-request-state={turnState.requestState}
-                            data-codex-turn-state-request-length={
-                              turnState.requestLength ?? 'unknown'
+                            title={
+                              turnState.responseLength === null
+                                ? t('monitoring.codex_turn_state_unknown')
+                                : undefined
                             }
-                            data-codex-turn-state-request-scope={
-                              turnState.requestScope ?? 'unknown'
+                            data-codex-turn-state-response-status={
+                              turnState.responseLength === null ? 'unobserved' : 'observed'
                             }
                           >
-                            {turnState.requestState === 'injected' ||
-                            turnState.requestState === 'passthrough' ? (
-                              <>
-                                <span className={styles.realtimeTurnStatePrefix}>
-                                  {t(turnStateRequestTextKey(turnState))}
-                                </span>
-                                <span
-                                  className={[
-                                    styles.realtimeTurnStateNumber,
-                                    turnStateLengthColorClass(turnState.requestLength),
-                                  ]
-                                    .filter(Boolean)
-                                    .join(' ')}
-                                >
-                                  {turnState.requestLength}
-                                </span>
-                              </>
-                            ) : (
-                              <span className={styles.realtimeTurnStateText}>
-                                {turnState.requestState === 'none'
-                                  ? t(turnStateRequestTextKey(turnState))
-                                  : '—'}
-                              </span>
-                            )}
                             {turnState.responseLength !== null ? (
                               <span
                                 className={styles.realtimeTurnStateResponse}
@@ -1372,7 +1294,9 @@ export function RealtimeEventsPanel({
                                   {turnState.responseLength}
                                 </span>
                               </span>
-                            ) : null}
+                            ) : (
+                              <span className={styles.realtimeTurnStateText}>—</span>
+                            )}
                           </span>
                         </span>
                       ) : null}

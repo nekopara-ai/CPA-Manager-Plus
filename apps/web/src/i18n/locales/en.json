@@ -2675,7 +2675,7 @@
     "codex_turn_state_ws_passthrough_hint": "This WebSocket connection passed through a {{length}}-byte ticket during the handshake. Reused connections keep that handshake rather than sending a new header per message.",
     "codex_turn_state_ws_none_hint": "This WebSocket connection carried no ticket during the handshake. Reused connections keep that handshake rather than sending a new header per message.",
     "codex_turn_state_response_hint": "X-Codex-Turn-State returned by this response: {{length}} bytes. This does not confirm injection or current validity.",
-    "codex_turn_state_unknown": "No request ticket observed. There may be no request observation or the record may predate collection.",
+    "codex_turn_state_unknown": "No response ticket length observed. The header may be absent or the record may predate collection.",
     "service_tier_breakdown": "Requested {{request}} · Translated {{effective}} · Reported {{response}}",
     "executor_type": "Executor Type",
     "executor_type_short": "Executor",
