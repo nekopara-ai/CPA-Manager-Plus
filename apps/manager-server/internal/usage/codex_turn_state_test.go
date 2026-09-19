@@ -71,3 +71,121 @@ func TestCodexTurnStateAbsentAndImportedMetadata(t *testing.T) {
 		t.Fatal("import did not enrich existing metadata from the same response")
 	}
 }
+
+func TestCodexTurnStateRequestObservationWithoutResponseHeader(t *testing.T) {
+	for _, tc := range []struct {
+		source string
+		length int
+	}{{"cache", 292}, {"passthrough", 312}, {"none", 0}} {
+		t.Run(tc.source, func(t *testing.T) {
+			raw := fmt.Sprintf(`{"timestamp":"2026-09-19T12:00:00Z","provider":"codex","model":"test-model","auth_index":"account-a","codex_turn_state":{"request_length":%d,"request_source":%q}}`, tc.length, tc.source)
+			event, err := NormalizeRaw([]byte(raw))
+			if err != nil {
+				t.Fatal(err)
+			}
+			metadata := ResponseHeaderMetadataFromJSON(event.ResponseMetadataJSON)
+			assertRequestTurnState(t, metadata, tc.length, tc.source, 0)
+			if event.AuthIndex != "account-a" {
+				t.Fatal("credential attribution lost")
+			}
+			// Export/import must preserve explicit zero and source, without inventing
+			// a response header or retaining plaintext ticket material.
+			exported, err := json.Marshal(event)
+			if err != nil {
+				t.Fatal(err)
+			}
+			result, err := ParseImportPayload(exported)
+			if err != nil || len(result.Events) != 1 {
+				t.Fatalf("import failed: %v", err)
+			}
+			assertRequestTurnState(t, result.Events[0].ResponseMetadata, tc.length, tc.source, 0)
+		})
+	}
+}
+
+func TestCodexTurnStateRequestAndResponseAreIndependent(t *testing.T) {
+	base := time.Date(2026, 9, 19, 12, 0, 0, 0, time.UTC)
+	response := "gAAAAA" + strings.Repeat("b", 306)
+	request := map[string]any{"request_length": 292, "request_source": "cache"}
+	raw, err := json.Marshal(map[string]any{"codex_turn_state": request})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, record := range []map[string]any{
+		{"codex_turn_state": request, "response_headers": map[string]any{"X-Codex-Turn-State": response}},
+		{"raw_json": string(raw), "response_metadata": map[string]any{"codex_turn_state": map[string]any{"response_length": 312}}},
+		{"codex_turn_state": request, "response_metadata": map[string]any{"codex_turn_state": map[string]any{"response_length": 312}}},
+	} {
+		metadata := ResponseHeaderMetadataFromRecord(record, base)
+		assertRequestTurnState(t, metadata, 292, "cache", 312)
+		derived := DeriveResponseHeaderMetadata(metadata)
+		if strings.Contains(derived.MetadataJSON, response) {
+			t.Fatal("plaintext response ticket leaked into metadata")
+		}
+	}
+	// A new explicit 'none' on the same record replaces the whole request
+	// observation, including the prior nonzero length, but keeps the response.
+	metadata := ResponseHeaderMetadataFromRecord(map[string]any{
+		"response_metadata": map[string]any{"codex_turn_state": map[string]any{
+			"request_length": 292, "request_source": "cache", "response_length": 312, "request_scope": "websocket_handshake",
+		}},
+		"codex_turn_state": map[string]any{"request_length": 0, "request_source": "none"},
+	}, base)
+	assertRequestTurnState(t, metadata, 0, "none", 312)
+	if metadata.CodexTurnState.RequestScope != "" {
+		t.Fatal("HTTP observation inherited stale websocket scope")
+	}
+	metadata = ResponseHeaderMetadataFromRecord(map[string]any{
+		"codex_turn_state": map[string]any{"request_length": 292, "request_source": "cache", "request_scope": "websocket_handshake"},
+	}, base)
+	assertRequestTurnState(t, metadata, 292, "cache", 0)
+	if ResponseHeaderMetadataFromJSON(DeriveResponseHeaderMetadata(metadata).MetadataJSON).CodexTurnState.RequestScope != "websocket_handshake" {
+		t.Fatal("websocket handshake scope lost in storage")
+	}
+}
+
+func TestCodexTurnStateRejectsIncompleteOrInvalidRequestObservations(t *testing.T) {
+	for _, observation := range []string{
+		`null`, `{}`, `{"request_length":292}`, `{"request_source":"cache"}`,
+		`{"request_length":0,"request_source":"cache"}`,
+		`{"request_length":292,"request_source":"none"}`,
+		`{"request_length":-1,"request_source":"passthrough"}`,
+		`{"request_length":65537,"request_source":"cache"}`,
+		`{"request_length":292.5,"request_source":"cache"}`,
+		`{"request_length":"292","request_source":"cache"}`,
+		`{"request_length":292,"request_source":"untrusted"}`,
+		`{"request_length":292,"request_source":"cache","request_scope":"invented"}`,
+		`{"response_length":292}`,
+	} {
+		t.Run(observation, func(t *testing.T) {
+			var raw any
+			if err := json.Unmarshal([]byte(observation), &raw); err != nil {
+				t.Fatal(err)
+			}
+			metadata := ResponseHeaderMetadataFromRecord(map[string]any{
+				"codex_turn_state":  raw,
+				"response_metadata": map[string]any{"codex_turn_state": map[string]any{"response_length": 312}},
+			}, time.Now())
+			if metadata == nil || metadata.CodexTurnState == nil || metadata.CodexTurnState.ResponseLength != 312 ||
+				metadata.CodexTurnState.RequestLength != nil || metadata.CodexTurnState.RequestSource != "" {
+				t.Fatal("invalid request data must not claim injection or discard independent response data")
+			}
+		})
+	}
+	// Old response-only events remain unknown on the request side.
+	metadata := ResponseHeaderMetadataFromJSON(`{"codex_turn_state":{"response_length":292}}`)
+	if metadata == nil || metadata.CodexTurnState.RequestLength != nil || metadata.CodexTurnState.RequestSource != "" {
+		t.Fatal("old response-only event was mislabeled as injected")
+	}
+}
+
+func assertRequestTurnState(t *testing.T, metadata *ResponseHeaderMetadata, length int, source string, responseLength int) {
+	t.Helper()
+	if metadata == nil || metadata.CodexTurnState == nil {
+		t.Fatal("ticket metadata missing")
+	}
+	state := metadata.CodexTurnState
+	if state.RequestLength == nil || *state.RequestLength != length || state.RequestSource != source || state.ResponseLength != responseLength {
+		t.Fatalf("incorrect request/response observation: %+v", state)
+	}
+}

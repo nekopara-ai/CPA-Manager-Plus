@@ -23,10 +23,14 @@ type ResponseHeaderMetadata struct {
 	ProviderUsage  *ProviderUsageMetadata        `json:"provider_usage,omitempty"`
 }
 
-// HeaderCodexTurnStateMetadata describes the header observed on this response.
-// Its length does not establish that a ticket was stored, injected, or is still valid.
+// HeaderCodexTurnStateMetadata keeps independent request and response observations.
+// Request fields describe that attempt's outbound header, never the current cache.
+// Response length alone does not establish injection or ticket validity.
 type HeaderCodexTurnStateMetadata struct {
-	ResponseLength int `json:"response_length"`
+	RequestLength  *int   `json:"request_length,omitempty"`
+	RequestSource  string `json:"request_source,omitempty"`
+	RequestScope   string `json:"request_scope,omitempty"`
+	ResponseLength int    `json:"response_length,omitempty"`
 }
 
 type HeaderQuotaMetadata struct {
@@ -169,6 +173,7 @@ func ParseResponseHeaderMetadataFromRawJSON(rawJSON string, base time.Time) *Res
 		return nil
 	}
 	metadata := ParseResponseHeaderMetadata(first(record, "response_headers", "responseHeaders", "headers"), base)
+	metadata = attachCodexRequestTurnState(metadata, record)
 	return attachProviderUsageMetadata(metadata, ProviderUsageMetadataFromRecord(record, base))
 }
 
@@ -191,6 +196,7 @@ func ResponseHeaderMetadataFromRecord(record map[string]any, base time.Time) *Re
 		metadata,
 		ParseResponseHeaderMetadata(first(record, "response_headers", "responseHeaders", "headers"), base),
 	)
+	metadata = attachCodexRequestTurnState(metadata, record)
 	return attachProviderUsageMetadata(metadata, ProviderUsageMetadataFromRecord(record, base))
 }
 
@@ -275,6 +281,15 @@ func MergeResponseHeaderMetadata(existing *ResponseHeaderMetadata, overlay *Resp
 	var merged ResponseHeaderMetadata
 	if json.Unmarshal(mergedRaw, &merged) != nil {
 		return cloneResponseHeaderMetadata(existing)
+	}
+	// Request provenance is one observation, not independently mergeable fields.
+	// In particular an HTTP overlay must clear an older websocket scope while
+	// a response-only overlay must leave the request observation untouched.
+	if overlay.CodexTurnState != nil && overlay.CodexTurnState.RequestLength != nil && merged.CodexTurnState != nil {
+		length := *overlay.CodexTurnState.RequestLength
+		merged.CodexTurnState.RequestLength = &length
+		merged.CodexTurnState.RequestSource = overlay.CodexTurnState.RequestSource
+		merged.CodexTurnState.RequestScope = overlay.CodexTurnState.RequestScope
 	}
 	merged.ProviderUsage = providerUsage
 	sanitizeResponseHeaderMetadata(&merged)
@@ -363,9 +378,7 @@ func sanitizeResponseHeaderMetadata(metadata *ResponseHeaderMetadata) {
 	if metadata == nil {
 		return
 	}
-	if metadata.CodexTurnState != nil && metadata.CodexTurnState.ResponseLength <= 0 {
-		metadata.CodexTurnState = nil
-	}
+	metadata.CodexTurnState = sanitizeCodexTurnState(metadata.CodexTurnState)
 	if metadata.Quota != nil {
 		metadata.Quota.PlanType = normalizeHeaderValue(metadata.Quota.PlanType)
 		metadata.Quota.ActiveLimit = normalizeHeaderValue(metadata.Quota.ActiveLimit)

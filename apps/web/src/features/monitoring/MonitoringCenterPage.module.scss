@@ -1564,8 +1564,30 @@
 }
 
 .realtimeTurnStateValue {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 6px;
   font-variant-numeric: tabular-nums;
   justify-self: start;
+}
+
+.realtimeTurnStatePrefix {
+  color: var(--monitor-muted);
+  font-weight: 500;
+}
+
+.realtimeTurnStateText {
+  color: var(--monitor-ink);
+}
+
+.realtimeTurnStateResponse {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 2px;
+}
+
+.realtimeTurnStateNumber {
   border-radius: 4px;
   padding: 0 4px;
 

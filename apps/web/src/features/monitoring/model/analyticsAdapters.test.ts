@@ -58,7 +58,7 @@ describe('buildUsageDetailsFromAnalyticsEvents', () => {
 
     const details = buildUsageDetailsFromAnalyticsEvents(events);
 
-    expect(details[0]).toMatchObject({
+      expect(details[0]).toMatchObject({
       __modelName: 'alias-model',
       __requestedModel: 'original-alias-model(max)',
       __resolvedModel: 'upstream-model',
@@ -80,6 +80,49 @@ describe('buildUsageDetailsFromAnalyticsEvents', () => {
       failed: true,
       fail_status_code: 429,
       fail_summary: 'rate limit exceeded',
+    });
+  });
+
+  it('preserves request and response ticket observations through the adapter', () => {
+    const events: MonitoringAnalyticsEventRow[] = [
+      {
+        event_hash: 'event-ticket',
+        timestamp_ms: Date.UTC(2026, 4, 20, 1, 2, 3),
+        model: 'gpt-5.4',
+        endpoint: 'POST /v1/responses',
+        method: 'POST',
+        path: '/v1/responses',
+        auth_index: 'auth-1',
+        source: 'source.json',
+        source_hash: 'source-hash',
+        api_key_hash: 'api-key-hash',
+        account_snapshot: 'account@example.com',
+        auth_label_snapshot: 'label',
+        auth_provider_snapshot: 'codex',
+        input_tokens: 10,
+        output_tokens: 5,
+        cached_tokens: 0,
+        cache_read_tokens: 0,
+        cache_creation_tokens: 0,
+        reasoning_tokens: 0,
+        total_tokens: 15,
+        latency_ms: 100,
+        failed: false,
+        response_metadata: {
+          codex_turn_state: {
+            request_length: 292,
+            request_source: 'cache',
+            response_length: 312,
+          },
+        },
+      },
+    ];
+
+    const details = buildUsageDetailsFromAnalyticsEvents(events);
+    expect(details[0].response_metadata?.codex_turn_state).toEqual({
+      request_length: 292,
+      request_source: 'cache',
+      response_length: 312,
     });
   });
 

@@ -88,7 +88,10 @@ export interface UsageResponseHeaderQuotaWindow {
 
 export interface UsageResponseHeaderMetadata {
   codex_turn_state?: {
-    response_length: number;
+    request_length?: number;
+    request_source?: 'cache' | 'passthrough' | 'none';
+    request_scope?: 'websocket_handshake';
+    response_length?: number;
   };
   quota?: {
     plan_type?: string;

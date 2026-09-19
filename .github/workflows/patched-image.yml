@@ -1,6 +1,9 @@
 name: Build patched image
 
 on:
+  pull_request:
+    branches:
+      - codex/cpamp-effective-tier
   push:
     branches:
       - codex/cpamp-effective-tier
@@ -15,7 +18,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: patched-image
+  group: patched-image-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || 'publish' }}
   cancel-in-progress: true
 
 env:
@@ -38,7 +41,7 @@ jobs:
       - name: Checkout patched source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ inputs.source_sha || (github.event_name == 'push' && github.sha) || 'codex/cpamp-effective-tier' }}
+          ref: ${{ github.event.pull_request.head.sha || inputs.source_sha || (github.event_name == 'push' && github.sha) || 'codex/cpamp-effective-tier' }}
           fetch-depth: 0
           fetch-tags: true
           persist-credentials: false
@@ -47,16 +50,40 @@ jobs:
         id: metadata
         shell: bash
         env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
           EXPECTED_SOURCE_SHA: ${{ inputs.source_sha }}
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
 
+          source_sha="$(git rev-parse HEAD)"
+          # PRs test their exact candidate without requiring a published version
+          # or exposing the publishing job's package-write permissions.
+          if [[ "${EVENT_NAME}" == 'pull_request' ]]; then
+            if [[ "${PR_BASE_REF}" != "${PATCH_BRANCH}" ||
+                  "${source_sha}" != "${PR_HEAD_SHA}" ||
+                  ! "${PR_BASE_SHA}" =~ ^[0-9a-f]{40}$ ||
+                  ! "${PR_NUMBER}" =~ ^[1-9][0-9]*$ ]]; then
+              echo 'Invalid maintained-branch PR source' >&2
+              exit 1
+            fi
+            if ! git merge-base --is-ancestor "${PR_BASE_SHA}" "${source_sha}"; then
+              echo 'PR source must contain its maintained base before validation' >&2
+              exit 1
+            fi
+            echo "source_sha=${source_sha}" >> "${GITHUB_OUTPUT}"
+            echo "version=ci-pr-${PR_NUMBER}-${source_sha:0:12}" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
           git fetch --no-tags origin \
             "+refs/heads/${PATCH_BRANCH}:refs/remotes/origin/${PATCH_BRANCH}" \
             '+refs/heads/main:refs/remotes/origin/main'
 
-          source_sha="$(git rev-parse HEAD)"
           patch_head="$(git rev-parse "refs/remotes/origin/${PATCH_BRANCH}")"
           if [[ -n "${EXPECTED_SOURCE_SHA}" && ! "${EXPECTED_SOURCE_SHA}" =~ ^[0-9a-f]{40}$ ]]; then
             echo "Invalid source SHA: ${EXPECTED_SOURCE_SHA}" >&2
@@ -151,8 +178,15 @@ jobs:
         working-directory: apps/manager-server
         run: go test -race -timeout 30m ./...
 
+      - name: Build Manager Server
+        working-directory: apps/manager-server
+        run: go build -o "${RUNNER_TEMP}/cpa-manager-plus" ./cmd/cpa-manager-plus
+
   image:
-    if: github.repository == 'nekopara-ai/CPA-Manager-Plus'
+    if: >-
+      github.repository == 'nekopara-ai/CPA-Manager-Plus' &&
+      github.event_name != 'pull_request' &&
+      github.ref == 'refs/heads/codex/cpamp-effective-tier'
     needs: test
     runs-on: ubuntu-latest
     timeout-minutes: 90
