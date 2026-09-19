@@ -8,6 +8,28 @@ const readWorkflow = (name) =>
   readFileSync(path.join(repoRoot, '.github', 'workflows', name), 'utf8');
 
 describe('Nekopara fork workflows', () => {
+  it('validates maintained-branch PR candidates without publishing or cancelling releases', () => {
+    const workflow = readWorkflow('patched-image.yml');
+    const trigger = workflow.slice(0, workflow.indexOf('\npermissions:'));
+    const testJob = workflow.slice(workflow.indexOf('\n  test:'), workflow.indexOf('\n  image:'));
+    const imageJob = workflow.slice(workflow.indexOf('\n  image:'));
+
+    expect(trigger).toMatch(/pull_request:\s*\n\s+branches:\s*\n\s+- codex\/cpamp-effective-tier/);
+    expect(trigger).not.toContain('pull_request_target:');
+    expect(workflow).toContain("format('pr-{0}', github.event.pull_request.number) || 'publish'");
+    expect(testJob).toContain('github.event.pull_request.head.sha || inputs.source_sha');
+    expect(testJob).toContain('PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}');
+    expect(testJob).toContain('"${source_sha}" != "${PR_HEAD_SHA}"');
+    expect(testJob).toContain('git merge-base --is-ancestor "${PR_BASE_SHA}" "${source_sha}"');
+    expect(testJob).toContain('version=ci-pr-${PR_NUMBER}-${source_sha:0:12}');
+    expect(testJob).toContain('go build -o "${RUNNER_TEMP}/cpa-manager-plus" ./cmd/cpa-manager-plus');
+    expect(testJob).not.toContain('packages: write');
+    expect(testJob).not.toContain('secrets.');
+    expect(imageJob).toContain("github.event_name != 'pull_request'");
+    expect(imageJob).toContain("github.ref == 'refs/heads/codex/cpamp-effective-tier'");
+    expect(imageJob).toContain('needs: test');
+  });
+
   it('syncs upstream through main and fails closed on patch conflicts', () => {
     const workflow = readWorkflow('sync-upstream-main.yml');
 
