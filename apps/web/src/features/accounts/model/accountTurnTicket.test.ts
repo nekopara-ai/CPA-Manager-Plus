@@ -85,3 +85,30 @@ describe('accountTurnTicket', () => {
     expect(getAccountTurnTicketRemaining(now - 1, now)).toBeNull();
   });
 });
+
+it('uses backend Team policy for imported credentials without OAuth tokens', () => {
+  const result = resolveAccountTurnTicket(
+    {
+      name: 'imported.json',
+      type: 'codex',
+      codex_turn_ticket: {
+        configured: true,
+        enabled: true,
+        plan: 'team',
+        plan_source: 'manual',
+        target_length: 332,
+        state: 'healthy',
+        healthy_models: 1,
+        total_models: 1,
+        models: [{ model: 'gpt-6-astra', ticket_state: 'healthy', ticket_length: 332 }],
+      },
+    },
+    'codex'
+  );
+  expect(result).toMatchObject({
+    plan: 'team',
+    planSource: 'manual',
+    targetLength: 332,
+    state: 'healthy',
+  });
+});

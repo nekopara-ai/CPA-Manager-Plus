@@ -532,3 +532,14 @@ describe('buildRedactedAuthFileConfigurationText', () => {
     });
   });
 });
+
+it('patches only the Team policy for an imported access-token credential', () => {
+  const record = { type: 'codex', access_token: 'opaque-fixture', account_id: 'workspace' };
+  const original = buildAuthFileConfigurationDraft(record, 'codex');
+  const result = buildAuthFileConfigurationPatch(record, 'codex', original, {
+    ...original,
+    codexTicketPlan: 'team',
+  });
+  expect(result.errors).toEqual({});
+  expect(result.patch).toEqual({ codex_turn_ticket_plan: 'team' });
+});

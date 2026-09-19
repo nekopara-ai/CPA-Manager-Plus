@@ -97,6 +97,19 @@ export function AccountTurnTicketStatus({
         ? t('accounts.turn_ticket_backend_required', { defaultValue: 'Backend data required' })
         : '');
   const titleParts = [stateLabel];
+  if (summary.plan) {
+    titleParts.push(
+      t('accounts.turn_ticket_plan_hint', {
+        plan:
+          summary.plan === 'team'
+            ? 'Team / Business'
+            : summary.plan === 'pro'
+              ? 'Pro / Personal'
+              : summary.plan,
+        source: t(`accounts.turn_ticket_plan_source_${summary.planSource || 'config'}`),
+      })
+    );
+  }
   if (summary.earliestExpiresAtMs !== null) {
     titleParts.push(
       t('accounts.turn_ticket_exact_expiry', {

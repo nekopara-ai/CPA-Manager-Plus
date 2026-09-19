@@ -325,6 +325,22 @@ export function AccountOverviewTab({
             <>
               <dl className={styles.overviewTurnTicketSummary}>
                 <div>
+                  <dt>{t('accounts.turn_ticket_plan')}</dt>
+                  <dd>
+                    {turnTicket.plan === 'team'
+                      ? 'Team / Business'
+                      : turnTicket.plan === 'pro'
+                        ? 'Pro / Personal'
+                        : '—'}
+                  </dd>
+                </div>
+                <div>
+                  <dt>{t('accounts.turn_ticket_plan_source')}</dt>
+                  <dd>
+                    {t(`accounts.turn_ticket_plan_source_${turnTicket.planSource || 'config'}`)}
+                  </dd>
+                </div>
+                <div>
                   <dt>{t('accounts.detail_turn_ticket_models')}</dt>
                   <dd>
                     {turnTicket.healthyModels}/{turnTicket.totalModels}
