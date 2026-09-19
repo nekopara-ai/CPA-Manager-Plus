@@ -37,6 +37,7 @@ describe('accountsWorkspaceUiState', () => {
       search: 'team-*',
       statusFilter: 'weekly_limited' as const,
       operationalFilter: 'cooldown' as const,
+      turnTicketFilter: 'ready' as const,
       accountSort: { key: 'name' as const, direction: 'asc' as const },
       pageSize: 20,
       accountDisplayMode: 'full' as const,
@@ -51,6 +52,7 @@ describe('accountsWorkspaceUiState', () => {
       normalizeAccountsWorkspaceUiState({
         statusFilter: 'secret',
         operationalFilter: 'unknown',
+        turnTicketFilter: 'secret',
         accountSort: { key: 'bad', direction: 'sideways' },
         pageSize: 999,
         quotaFocused: true,

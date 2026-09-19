@@ -406,6 +406,14 @@ describe('authFilesApi list normalization', () => {
           authIndex: 'auth-1',
           source: 'runtime',
           status: 'ok',
+          codex_turn_ticket: {
+            configured: true,
+            enabled: true,
+            target_length: 292,
+            state: 'healthy',
+            healthy_models: 1,
+            total_models: 1,
+          },
         },
         {
           name: 'shared.json',
@@ -431,6 +439,10 @@ describe('authFilesApi list normalization', () => {
         path: '/auth/shared.json',
         size: 123,
         status: 'ok',
+        codex_turn_ticket: expect.objectContaining({
+          state: 'healthy',
+          target_length: 292,
+        }),
       })
     );
     expect(result.total).toBe(1);

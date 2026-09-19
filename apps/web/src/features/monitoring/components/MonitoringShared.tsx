@@ -51,6 +51,7 @@ export type SummaryCardIcon =
   | 'reauth'
   | 'credential'
   | 'available'
+  | 'ticket'
   | 'attention'
   | 'quota-risk'
   | 'disabled'
@@ -123,6 +124,7 @@ const summaryIconMap: Record<SummaryCardIcon, ComponentType<IconProps>> = {
   reauth: IconRefreshCw,
   credential: IconKey,
   available: IconShieldCheck,
+  ticket: IconBinary,
   attention: IconTriangleAlert,
   'quota-risk': IconPercentCircle,
   disabled: IconBan,
@@ -327,7 +329,8 @@ export function RecentPattern({
   variant?: 'default' | 'plain';
 }) {
   const fallbackLength = variant === 'plain' ? 5 : 10;
-  const normalized = pattern.length > 0 ? pattern : Array.from({ length: fallbackLength }, () => true);
+  const normalized =
+    pattern.length > 0 ? pattern : Array.from({ length: fallbackLength }, () => true);
   const visiblePattern = variant === 'plain' ? normalized.slice(-5) : normalized;
   const containerClassName = [
     styles.patternBars,

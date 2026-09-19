@@ -20,6 +20,53 @@ export type AuthFileType =
   | 'empty'
   | 'unknown';
 
+export type CodexTurnTicketState =
+  | 'healthy'
+  | 'partial'
+  | 'expiring'
+  | 'expired_or_invalid'
+  | 'missing'
+  | 'disabled'
+  | 'not_scoped'
+  | 'unavailable';
+
+export interface CodexTurnTicketModelSnapshot {
+  model?: string;
+  ticket_state?: string;
+  ticketState?: string;
+  ticket_length?: number;
+  ticketLength?: number;
+  expires_at?: string | number;
+  expiresAt?: string | number;
+  last_observed_at?: string | number;
+  lastObservedAt?: string | number;
+  last_http_status?: number;
+  lastHttpStatus?: number;
+  last_observed_length?: number;
+  lastObservedLength?: number;
+  last_observed_healthy?: boolean;
+  lastObservedHealthy?: boolean;
+  last_result?: string;
+  lastResult?: string;
+}
+
+export interface CodexTurnTicketCredentialSnapshot {
+  configured?: boolean;
+  enabled?: boolean;
+  harvester_active?: boolean;
+  harvesterActive?: boolean;
+  target_length?: number;
+  targetLength?: number;
+  state?: CodexTurnTicketState | string;
+  healthy_models?: number;
+  healthyModels?: number;
+  total_models?: number;
+  totalModels?: number;
+  earliest_expires_at?: string | number;
+  earliestExpiresAt?: string | number;
+  models?: CodexTurnTicketModelSnapshot[];
+}
+
 export interface AuthFileItem {
   id?: string;
   name: string;
@@ -43,6 +90,8 @@ export interface AuthFileItem {
   geminiVirtualProject?: string;
   recent_requests?: RecentRequestBucket[];
   recentRequests?: RecentRequestBucket[];
+  codex_turn_ticket?: CodexTurnTicketCredentialSnapshot;
+  codexTurnTicket?: CodexTurnTicketCredentialSnapshot;
   [key: string]: unknown;
 }
 

@@ -7,7 +7,7 @@ vi.mock('react-i18next', () => ({
 }));
 
 describe('AccountMetricsGrid', () => {
-  it('renders the six credential status cards in operational order', () => {
+  it('renders the seven credential status cards in operational order', () => {
     let renderer: ReactTestRenderer;
 
     act(() => {
@@ -16,6 +16,7 @@ describe('AccountMetricsGrid', () => {
           metrics={{
             total: 12,
             available: 6,
+            ticketReady: 4,
             needsAttention: 2,
             quotaRisk: 1,
             disabled: 2,
@@ -32,6 +33,7 @@ describe('AccountMetricsGrid', () => {
     expect(cards.map((card) => card.props['data-summary-icon'])).toEqual([
       'credential',
       'available',
+      'ticket',
       'attention',
       'quota-risk',
       'disabled',
@@ -40,12 +42,13 @@ describe('AccountMetricsGrid', () => {
     expect(cards.map((card) => card.findByType('strong').children.join(''))).toEqual([
       '12',
       '6',
+      '4',
       '2',
       '1',
       '2',
       '1',
     ]);
-    expect(renderer!.root.findAllByType('svg')).toHaveLength(12);
+    expect(renderer!.root.findAllByType('svg')).toHaveLength(14);
     expect(renderer!.root.findByProps({ 'aria-label': 'accounts.metrics_label' })).toBeTruthy();
   });
 });

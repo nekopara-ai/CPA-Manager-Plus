@@ -31,6 +31,14 @@ export function AccountMetricsGrid({ metrics }: AccountMetricsGridProps) {
       accent: 'green' as const,
     },
     {
+      key: 'ticket-ready',
+      label: t('accounts.metric_ticket_ready'),
+      value: metrics.ticketReady,
+      meta: t('accounts.metric_ticket_ready_meta'),
+      icon: 'ticket' as const,
+      accent: 'teal' as const,
+    },
+    {
       key: 'attention',
       label: t('accounts.metric_attention'),
       value: metrics.needsAttention,

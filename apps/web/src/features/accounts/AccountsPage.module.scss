@@ -70,7 +70,7 @@
 
 .metricsGrid {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   grid-auto-rows: minmax(112px, auto);
   gap: 10px;
   min-width: 0;
@@ -78,7 +78,7 @@
 
 @container monitoring-page (max-width: 1240px) {
   .metricsGrid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 
@@ -190,7 +190,7 @@
 
 .toolbar {
   display: grid;
-  grid-template-columns: minmax(240px, 2fr) repeat(4, minmax(128px, 1fr)) minmax(118px, auto);
+  grid-template-columns: minmax(240px, 2fr) repeat(5, minmax(120px, 1fr)) minmax(118px, auto);
   gap: 10px;
   align-items: center;
   padding: 12px;
@@ -370,7 +370,7 @@
 .accountCardList {
   display: grid;
   gap: 8px;
-  min-width: 1240px;
+  min-width: 1360px;
   padding: 10px 12px;
 }
 
@@ -381,6 +381,7 @@
     minmax(140px, 1.1fr)
     76px
     96px
+    118px
     minmax(124px, 0.3fr)
     minmax(160px, 0.35fr)
     minmax(280px, 3fr)
@@ -409,7 +410,8 @@
   > span:nth-child(2),
   > span:nth-child(3),
   > span:nth-child(4),
-  > span:nth-child(5) {
+  > span:nth-child(5),
+  > span:nth-child(6) {
     justify-content: center;
     text-align: center;
   }
@@ -421,7 +423,7 @@
   }
 
   > span:first-child,
-  > span:nth-child(6) {
+  > span:nth-child(7) {
     justify-content: flex-start;
     text-align: left;
   }
@@ -544,6 +546,123 @@
   flex-direction: column;
   gap: 8px;
   min-width: 0;
+}
+
+.accountGridCardTicket {
+  display: flex;
+  min-width: 0;
+}
+
+.turnTicketStatus {
+  --turn-ticket-color: var(--accounts-muted);
+  --turn-ticket-background: color-mix(in srgb, var(--accounts-muted) 7%, transparent);
+  --turn-ticket-border: color-mix(in srgb, var(--accounts-muted) 24%, var(--accounts-border));
+
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 3px;
+  min-width: 0;
+  max-width: 100%;
+  padding: 7px 9px;
+  border: 1px solid var(--turn-ticket-border);
+  border-radius: 9px;
+  background: var(--turn-ticket-background);
+  color: var(--turn-ticket-color);
+  font: inherit;
+  line-height: 1.2;
+  text-align: left;
+  appearance: none;
+
+  &:is(button) {
+    cursor: pointer;
+
+    &:hover {
+      border-color: color-mix(in srgb, var(--turn-ticket-color) 45%, var(--accounts-border));
+      background: color-mix(in srgb, var(--turn-ticket-color) 12%, var(--accounts-surface));
+    }
+
+    &:focus-visible {
+      outline: 2px solid color-mix(in srgb, var(--turn-ticket-color) 55%, transparent);
+      outline-offset: 2px;
+    }
+  }
+
+  small {
+    max-width: 100%;
+    overflow: hidden;
+    color: color-mix(in srgb, var(--turn-ticket-color) 76%, var(--accounts-muted));
+    font-size: 10.5px;
+    font-weight: 650;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.turnTicketStatusMain {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+
+  strong {
+    min-width: 0;
+    overflow: hidden;
+    font-size: 11.5px;
+    font-weight: 800;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.turnTicketStatusDot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 7px;
+  border-radius: 999px;
+  background: currentColor;
+  box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 12%, transparent);
+}
+
+.turnTicketStatusTable {
+  width: 100%;
+}
+
+.turnTicketStatusCard {
+  width: auto;
+  min-width: min(170px, 100%);
+}
+
+.turnTicketStatusNotApplicable {
+  align-items: center;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accounts-muted);
+}
+
+.turnTicketToneHealthy {
+  --turn-ticket-color: var(--accounts-success);
+  --turn-ticket-background: color-mix(in srgb, var(--accounts-success) 8%, var(--accounts-surface));
+  --turn-ticket-border: color-mix(in srgb, var(--accounts-success) 27%, var(--accounts-border));
+}
+
+.turnTicketToneWarning {
+  --turn-ticket-color: var(--accounts-warning);
+  --turn-ticket-background: color-mix(in srgb, var(--accounts-warning) 9%, var(--accounts-surface));
+  --turn-ticket-border: color-mix(in srgb, var(--accounts-warning) 30%, var(--accounts-border));
+}
+
+.turnTicketToneDanger {
+  --turn-ticket-color: var(--accounts-danger);
+  --turn-ticket-background: color-mix(in srgb, var(--accounts-danger) 7%, var(--accounts-surface));
+  --turn-ticket-border: color-mix(in srgb, var(--accounts-danger) 28%, var(--accounts-border));
+}
+
+.turnTicketToneNeutral {
+  --turn-ticket-color: var(--accounts-muted);
 }
 
 .accountGridCardMetaRow {
@@ -769,7 +888,9 @@
     flex-shrink: 0;
     opacity: 0.65;
     color: var(--accounts-muted);
-    transition: opacity 0.14s ease, color 0.14s ease;
+    transition:
+      opacity 0.14s ease,
+      color 0.14s ease;
   }
 
   .accountGridCardNoteText {
@@ -784,7 +905,9 @@
     font-style: normal;
     opacity: 0.7;
     user-select: none;
-    transition: color 0.14s ease, opacity 0.14s ease;
+    transition:
+      color 0.14s ease,
+      opacity 0.14s ease;
   }
 }
 
@@ -826,7 +949,6 @@
   }
 }
 
-
 .accountGridCardRecentStatus {
   display: flex;
   flex-direction: column;
@@ -837,7 +959,9 @@
   border-top: 1px solid color-mix(in srgb, var(--accounts-border) 60%, transparent);
   box-sizing: border-box;
   cursor: pointer;
-  transition: color 0.15s ease, opacity 0.15s ease;
+  transition:
+    color 0.15s ease,
+    opacity 0.15s ease;
 
   &:hover {
     .accountGridCardRecentStatusTitleGroup {
@@ -1092,7 +1216,7 @@
 
 @media (min-width: 1360px) {
   .accountCardList {
-    min-width: 1320px;
+    min-width: 1460px;
   }
 
   .accountCardHeader,
@@ -1101,6 +1225,7 @@
       minmax(150px, 1.1fr)
       70px
       96px
+      120px
       minmax(112px, 0.3fr)
       minmax(178px, 0.35fr)
       minmax(300px, 3fr)
@@ -1117,7 +1242,7 @@
 
 @media (min-width: 1680px) {
   .accountCardList {
-    min-width: 1500px;
+    min-width: 1640px;
   }
 
   .accountCardHeader,
@@ -1126,6 +1251,7 @@
       minmax(180px, 1.3fr)
       80px
       96px
+      132px
       minmax(124px, 0.3fr)
       minmax(186px, 0.35fr)
       minmax(380px, 3fr)
@@ -1148,7 +1274,6 @@
   .accountCardHeader {
     display: none;
   }
-
 }
 
 .accountCardSelected {
@@ -1174,6 +1299,7 @@
 .accountCardIdentity,
 .accountCardPlan,
 .accountCardHealth,
+.accountCardTicket,
 .accountCardLatestRequest,
 .accountCardBusiness,
 .accountCardRecommendation {
@@ -1423,6 +1549,13 @@
   justify-content: center;
 }
 
+.accountCardTicket {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+}
+
 .accountCardEvidence {
   display: flex;
   align-items: center;
@@ -1629,7 +1762,10 @@
   padding: 1px 5px;
   margin: -1px -5px;
   font-family: inherit;
-  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
 
   &:hover:not(:disabled) {
     background: color-mix(in srgb, var(--primary-color) 10%, transparent);
@@ -1667,7 +1803,9 @@
   border-radius: 4px;
   outline: none;
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary-color) 20%, transparent);
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
 
   &:focus {
     border-color: var(--primary-color);
@@ -3164,6 +3302,88 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
   min-width: 0;
+}
+
+.overviewTurnTicketCard {
+  grid-column: 1 / -1;
+}
+
+.overviewTurnTicketSummary,
+.overviewTurnTicketModelFields {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+  margin: 0;
+
+  > div {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+    padding: 9px 10px;
+    border: 1px solid color-mix(in srgb, var(--accounts-border) 76%, transparent);
+    border-radius: 9px;
+    background: color-mix(in srgb, var(--accounts-surface) 86%, transparent);
+  }
+
+  dt {
+    color: var(--accounts-muted);
+    font-size: 10px;
+    font-weight: 700;
+  }
+
+  dd {
+    min-width: 0;
+    margin: 0;
+    overflow-wrap: anywhere;
+    color: var(--accounts-text);
+    font-size: 12px;
+    font-weight: 800;
+  }
+}
+
+.overviewTurnTicketModels {
+  display: grid;
+  gap: 8px;
+}
+
+.overviewTurnTicketModel {
+  display: grid;
+  gap: 9px;
+  padding: 11px;
+  border: 1px solid var(--accounts-border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accounts-muted-surface) 38%, var(--accounts-surface));
+}
+
+.overviewTurnTicketModelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+
+  strong {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--accounts-text);
+    font-size: 13px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  span {
+    flex: 0 0 auto;
+    padding: 3px 7px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--accounts-primary) 9%, transparent);
+    color: var(--accounts-primary);
+    font-size: 10.5px;
+    font-weight: 800;
+  }
+}
+
+.overviewTurnTicketModelFields {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .overviewCard,
@@ -5681,7 +5901,7 @@
 }
 
 .toolbar {
-  grid-template-columns: minmax(220px, 1.5fr) repeat(4, minmax(132px, 1fr)) minmax(118px, auto);
+  grid-template-columns: minmax(220px, 1.5fr) repeat(5, minmax(120px, 1fr)) minmax(118px, auto);
   gap: 8px;
   padding: 0;
   border: 0;
@@ -6326,7 +6546,9 @@
   .overviewCardGrid,
   .overviewRecentStatusLayout,
   .overviewEvidenceRow,
-  .overviewFieldGrid {
+  .overviewFieldGrid,
+  .overviewTurnTicketSummary,
+  .overviewTurnTicketModelFields {
     grid-template-columns: 1fr;
   }
 
@@ -6514,6 +6736,7 @@
 
   .accountCardIdentity,
   .accountCardHealth,
+  .accountCardTicket,
   .accountCardLatestRequest,
   .accountCardEvidence,
   .accountCardBusiness,
@@ -6534,6 +6757,7 @@
   }
 
   .accountCardHealth,
+  .accountCardTicket,
   .accountCardLatestRequest,
   .accountCardEvidence,
   .accountCardBusiness,
@@ -6554,7 +6778,9 @@
   .overviewCardGrid,
   .overviewRecentStatusLayout,
   .overviewEvidenceRow,
-  .overviewFieldGrid {
+  .overviewFieldGrid,
+  .overviewTurnTicketSummary,
+  .overviewTurnTicketModelFields {
     grid-template-columns: 1fr;
   }
 
@@ -6645,6 +6871,7 @@
   }
 
   .accountCardHealth,
+  .accountCardTicket,
   .accountCardLatestRequest,
   .accountCardEvidence,
   .accountCardBusiness,
@@ -6653,6 +6880,7 @@
   }
 
   .accountCardHealth,
+  .accountCardTicket,
   .accountCardLatestRequest,
   .accountCardEvidence,
   .accountCardBusiness,

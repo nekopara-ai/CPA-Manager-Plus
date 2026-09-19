@@ -5,6 +5,7 @@ import {
   type AccountStatusFilter,
 } from './accountRows';
 import type { QuotaAccountDisplayMode } from '@/components/quota/quotaDisplay';
+import { ACCOUNT_TURN_TICKET_FILTERS, type AccountTurnTicketFilter } from './accountTurnTicket';
 
 export type AccountOperationalFilter = 'all' | 'reauth' | 'cooldown' | 'automation' | 'recovered';
 export type AccountsLayoutMode = 'table' | 'grid';
@@ -15,6 +16,7 @@ export interface AccountsWorkspaceUiState {
   statusFilter: AccountStatusFilter;
   planFilter: string;
   quotaBandFilter: AccountQuotaBand;
+  turnTicketFilter: AccountTurnTicketFilter;
   operationalFilter: AccountOperationalFilter;
   accountSort: AccountRowSort;
   pageSize: number;
@@ -39,6 +41,7 @@ const SORT_KEYS = new Set([
 const SORT_DIRECTIONS = new Set(['asc', 'desc']);
 const STATUS_FILTERS = new Set<AccountStatusFilter>(ACCOUNT_STATUS_FILTERS);
 const QUOTA_BANDS = new Set(['all', 'ge50', 'between20and50', 'lt20', 'spent']);
+const TURN_TICKET_FILTERS = new Set<AccountTurnTicketFilter>(ACCOUNT_TURN_TICKET_FILTERS);
 const OPERATIONAL_FILTERS = new Set(['all', 'reauth', 'cooldown', 'automation', 'recovered']);
 
 export const DEFAULT_ACCOUNTS_WORKSPACE_UI_STATE: AccountsWorkspaceUiState = {
@@ -47,6 +50,7 @@ export const DEFAULT_ACCOUNTS_WORKSPACE_UI_STATE: AccountsWorkspaceUiState = {
   statusFilter: 'all',
   planFilter: 'all',
   quotaBandFilter: 'all',
+  turnTicketFilter: 'all',
   operationalFilter: 'all',
   accountSort: { key: 'recent', direction: 'desc' },
   pageSize: 10,
@@ -81,6 +85,11 @@ export const normalizeAccountsWorkspaceUiState = (value: unknown): AccountsWorks
       typeof value.planFilter === 'string' && value.planFilter.trim() ? value.planFilter : 'all',
     quotaBandFilter: QUOTA_BANDS.has(String(value.quotaBandFilter))
       ? (String(value.quotaBandFilter) as AccountQuotaBand)
+      : 'all',
+    turnTicketFilter: TURN_TICKET_FILTERS.has(
+      String(value.turnTicketFilter) as AccountTurnTicketFilter
+    )
+      ? (String(value.turnTicketFilter) as AccountTurnTicketFilter)
       : 'all',
     operationalFilter: OPERATIONAL_FILTERS.has(String(value.operationalFilter))
       ? (String(value.operationalFilter) as AccountOperationalFilter)

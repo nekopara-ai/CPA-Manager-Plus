@@ -8,7 +8,7 @@ import {
 describe('accountsWorkspaceUrlState', () => {
   it('reads validated workspace filters, detail deep links and OAuth editors', () => {
     const state = readAccountsWorkspaceUrlState(
-      '?view=oauth&healthMode=server&search=team%2A&provider=codex&status=weekly_limited&plan=pro&quota=lt20&operation=reauth&sort=name&direction=asc&pageSize=20&display=masked&account=file.json%00auth-1&tab=diagnostics&editor=alias&editorProvider=codex',
+      '?view=oauth&healthMode=server&search=team%2A&provider=codex&status=weekly_limited&plan=pro&quota=lt20&ticket=partial&operation=reauth&sort=name&direction=asc&pageSize=20&display=masked&account=file.json%00auth-1&tab=diagnostics&editor=alias&editorProvider=codex',
       DEFAULT_ACCOUNTS_WORKSPACE_UI_STATE
     );
 
@@ -20,6 +20,7 @@ describe('accountsWorkspaceUrlState', () => {
       statusFilter: 'weekly_limited',
       planFilter: 'pro',
       quotaBandFilter: 'lt20',
+      turnTicketFilter: 'partial',
       operationalFilter: 'reauth',
       accountSort: { key: 'name', direction: 'asc' },
       pageSize: 20,
@@ -202,6 +203,28 @@ describe('accountsWorkspaceUrlState', () => {
     ).toBe('unconfirmed');
   });
 
+  it('round-trips the 292 ticket filter', () => {
+    const search = writeAccountsWorkspaceUrlSearch(
+      '',
+      {
+        ...DEFAULT_ACCOUNTS_WORKSPACE_UI_STATE,
+        view: 'accounts',
+        healthMode: 'local',
+        turnTicketFilter: 'ready',
+        account: null,
+        detailTab: 'overview',
+        editor: null,
+        editorProvider: '',
+      },
+      DEFAULT_ACCOUNTS_WORKSPACE_UI_STATE
+    );
+
+    expect(search).toBe('?ticket=ready');
+    expect(
+      readAccountsWorkspaceUrlState(search, DEFAULT_ACCOUNTS_WORKSPACE_UI_STATE).turnTicketFilter
+    ).toBe('ready');
+  });
+
   it('reads layoutMode from search params and falls back safely on invalid values', () => {
     expect(
       readAccountsWorkspaceUrlState('?layout=grid', DEFAULT_ACCOUNTS_WORKSPACE_UI_STATE).layoutMode
@@ -210,7 +233,8 @@ describe('accountsWorkspaceUrlState', () => {
       readAccountsWorkspaceUrlState('?layout=table', DEFAULT_ACCOUNTS_WORKSPACE_UI_STATE).layoutMode
     ).toBe('table');
     expect(
-      readAccountsWorkspaceUrlState('?layout=invalid', DEFAULT_ACCOUNTS_WORKSPACE_UI_STATE).layoutMode
+      readAccountsWorkspaceUrlState('?layout=invalid', DEFAULT_ACCOUNTS_WORKSPACE_UI_STATE)
+        .layoutMode
     ).toBe(DEFAULT_ACCOUNTS_WORKSPACE_UI_STATE.layoutMode);
   });
 

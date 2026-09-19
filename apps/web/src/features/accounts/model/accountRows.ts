@@ -57,6 +57,12 @@ import {
   resolveAuthFilePlanType,
 } from '@/utils/plans';
 import { buildAccountSubscriptionPresentation } from './accountSubscriptionPresentation';
+import {
+  accountTurnTicketMatchesFilter,
+  resolveAccountTurnTicket,
+  type AccountTurnTicketFilter,
+  type AccountTurnTicketSummary,
+} from './accountTurnTicket';
 
 export {
   compareQuotaResetLabels,
@@ -200,6 +206,7 @@ export interface AccountRow {
   quota: AccountQuotaSummary;
   usage: AccountUsageSummary;
   inspection: AccountInspectionSummary | null;
+  turnTicket?: AccountTurnTicketSummary;
   raw: AuthFileItem;
 }
 
@@ -220,6 +227,7 @@ export interface AccountMetrics {
   disabled: number;
   unconfirmed: number;
   needsInspectionAction: number;
+  ticketReady: number;
 }
 
 export interface AccountMetricOperationalContext {
@@ -233,6 +241,7 @@ export interface AccountRowFilters extends AccountMetricOperationalContext {
   status: AccountStatusFilter;
   plan: string;
   quotaBand: AccountQuotaBand;
+  turnTicket?: AccountTurnTicketFilter;
   search: string;
   codexStatusBySelectionKey?: ReadonlyMap<string, AuthFileCodexStatusSummary>;
 }
@@ -535,6 +544,7 @@ export const buildAccountRows = (
       quota,
       usage: buildUsageSummary(file),
       inspection,
+      turnTicket: resolveAccountTurnTicket(file, provider),
       raw: file,
     };
   });
@@ -681,9 +691,13 @@ export const buildAccountMetrics = (
     disabled: 0,
     unconfirmed: 0,
     needsInspectionAction: 0,
+    ticketReady: 0,
   };
 
   rows.forEach((row) => {
+    if (row.provider === 'codex' && row.turnTicket?.state === 'healthy') {
+      metrics.ticketReady += 1;
+    }
     const status = classifyAccountMetricStatus(row, context);
     metrics[status] += 1;
     const requestEvidence = getRowRequestHealthEvidence(row, context.requestEvidenceBySelectionKey);
@@ -742,17 +756,11 @@ export const filterAccountRows = (rows: AccountRow[], filters: AccountRowFilters
     if (filters.plan !== 'all' && rowPlan !== filters.plan) {
       return false;
     }
-    if (
-      !matchesStatusFilter(
-        row,
-        filters.status,
-        filters.codexStatusBySelectionKey,
-        filters
-      )
-    ) {
+    if (!matchesStatusFilter(row, filters.status, filters.codexStatusBySelectionKey, filters)) {
       return false;
     }
     if (!matchesQuotaBand(row, filters.quotaBand)) return false;
+    if (!accountTurnTicketMatchesFilter(row.turnTicket, filters.turnTicket)) return false;
     if (!search) return true;
     const values = [
       row.accountLabel,
@@ -860,11 +868,7 @@ export const getPlanOptions = (rows: AccountRow[], t?: TFunction): AccountPlanOp
       return;
     }
     const presentation = getPlanPresentation({ provider: row.provider, planType: row.planType, t });
-    const label = getCanonicalPlanFilterLabel(
-      plan,
-      t,
-      presentation?.shortLabel ?? plan
-    );
+    const label = getCanonicalPlanFilterLabel(plan, t, presentation?.shortLabel ?? plan);
     const previousLabel = labels.get(plan);
     if (!previousLabel || label < previousLabel) labels.set(plan, label);
   });
@@ -1060,7 +1064,11 @@ const compareAccountRowsBySort = (left: AccountRow, right: AccountRow, sort: Acc
     return compareNullableNumbers(left.createdAtMs, right.createdAtMs, sort.direction);
   }
   if (sort.key === 'remaining') {
-    return compareNullableNumbers(left.subscriptionUntilMs, right.subscriptionUntilMs, sort.direction);
+    return compareNullableNumbers(
+      left.subscriptionUntilMs,
+      right.subscriptionUntilMs,
+      sort.direction
+    );
   }
   if (sort.key === 'reset') {
     return compareQuotaResets(left.quota, right.quota, sort.direction);

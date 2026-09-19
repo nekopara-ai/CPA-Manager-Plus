@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import {
   IconChartLine,
   IconDatabaseZap,
+  IconBinary,
   IconKey,
   IconShield,
   IconTriangleAlert,
@@ -28,10 +29,13 @@ import type {
 } from '@/features/usage-analytics/usageAnalyticsPresentation';
 import { statusBarDataFromRecentRequests } from '@/utils/recentRequests';
 import { AccountDetailFieldValue } from './AccountDetailFieldList';
+import type { AccountTurnTicketSummary } from '@/features/accounts/model/accountTurnTicket';
+import { AccountTurnTicketStatus } from '../AccountTurnTicketStatus';
 import styles from '@/features/accounts/AccountsPage.module.scss';
 
 interface AccountOverviewTabProps {
   detailView: AccountDetailViewModel;
+  turnTicket?: AccountTurnTicketSummary;
   getHealthStatusClass: (status: AccountListHealthStatusKey) => string;
   onSelectTab: (tab: AccountDetailOverviewTargetTab) => void;
 }
@@ -99,7 +103,11 @@ const getActivityMetricTone = (metric: AccountDetailField): UsageSummaryCardTone
   return undefined;
 };
 
-export function AccountOverviewTab({ detailView, getHealthStatusClass }: AccountOverviewTabProps) {
+export function AccountOverviewTab({
+  detailView,
+  turnTicket,
+  getHealthStatusClass,
+}: AccountOverviewTabProps) {
   const { t, i18n } = useTranslation();
   const { decision, capacity, credential, recentStatus, activity, attention } = detailView.overview;
   const recentStatusData = statusBarDataFromRecentRequests(recentStatus.recentRequests);
@@ -292,6 +300,124 @@ export function AccountOverviewTab({ detailView, getHealthStatusClass }: Account
             <span>{t(credential.sourceLabelKey)}</span>
           </div>
           <OverviewFieldGrid fields={credential.fields} />
+        </section>
+
+        <section
+          className={`${styles.overviewCard} ${styles.overviewTurnTicketCard}`}
+          data-overview-section="turn-ticket"
+        >
+          <div className={styles.overviewCardHeader}>
+            <div className={styles.overviewSectionHeading}>
+              <span className={styles.overviewSectionIcon} aria-hidden="true">
+                <IconBinary size={18} />
+              </span>
+              <h3>{t('accounts.detail_turn_ticket_title')}</h3>
+            </div>
+            <AccountTurnTicketStatus
+              summary={turnTicket}
+              provider={turnTicket?.applicable ? 'codex' : ''}
+              variant="card"
+              interactive={false}
+            />
+          </div>
+
+          {turnTicket?.applicable ? (
+            <>
+              <dl className={styles.overviewTurnTicketSummary}>
+                <div>
+                  <dt>{t('accounts.detail_turn_ticket_models')}</dt>
+                  <dd>
+                    {turnTicket.healthyModels}/{turnTicket.totalModels}
+                  </dd>
+                </div>
+                <div>
+                  <dt>{t('accounts.detail_turn_ticket_target_length')}</dt>
+                  <dd>{turnTicket.targetLength || 292}</dd>
+                </div>
+                <div>
+                  <dt>{t('accounts.detail_turn_ticket_harvester')}</dt>
+                  <dd>
+                    {t(
+                      turnTicket.harvesterActive
+                        ? 'accounts.detail_turn_ticket_harvester_active'
+                        : 'accounts.detail_turn_ticket_harvester_inactive'
+                    )}
+                  </dd>
+                </div>
+                <div>
+                  <dt>{t('accounts.detail_turn_ticket_earliest_expiry')}</dt>
+                  <dd>
+                    {turnTicket.earliestExpiresAtMs === null
+                      ? '—'
+                      : formatTimestampTitle(turnTicket.earliestExpiresAtMs, i18n.language)}
+                  </dd>
+                </div>
+              </dl>
+
+              {turnTicket.models.length > 0 ? (
+                <div className={styles.overviewTurnTicketModels}>
+                  {turnTicket.models.map((model) => (
+                    <article
+                      key={model.model}
+                      className={styles.overviewTurnTicketModel}
+                      data-turn-ticket-model={model.model}
+                    >
+                      <div className={styles.overviewTurnTicketModelHeader}>
+                        <strong>{model.model}</strong>
+                        <span data-turn-ticket-model-state={model.ticketState}>
+                          {t(`accounts.turn_ticket_model_state_${model.ticketState}`, {
+                            defaultValue: model.ticketState,
+                          })}
+                        </span>
+                      </div>
+                      <dl className={styles.overviewTurnTicketModelFields}>
+                        <div>
+                          <dt>{t('accounts.detail_turn_ticket_length')}</dt>
+                          <dd>{model.ticketLength ?? '—'}</dd>
+                        </div>
+                        <div>
+                          <dt>{t('accounts.detail_turn_ticket_expires_at')}</dt>
+                          <dd>
+                            {model.expiresAtMs === null
+                              ? '—'
+                              : formatTimestampTitle(model.expiresAtMs, i18n.language)}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt>{t('accounts.detail_turn_ticket_last_observed_at')}</dt>
+                          <dd>
+                            {model.lastObservedAtMs === null
+                              ? '—'
+                              : formatTimestampTitle(model.lastObservedAtMs, i18n.language)}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt>{t('accounts.detail_turn_ticket_http_status')}</dt>
+                          <dd>{model.lastHttpStatus ?? '—'}</dd>
+                        </div>
+                        <div>
+                          <dt>{t('accounts.detail_turn_ticket_observed_length')}</dt>
+                          <dd>{model.lastObservedLength ?? '—'}</dd>
+                        </div>
+                        <div>
+                          <dt>{t('accounts.detail_turn_ticket_result')}</dt>
+                          <dd>{model.lastResult || '—'}</dd>
+                        </div>
+                      </dl>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <p className={styles.overviewCardDescription}>
+                  {t('accounts.detail_turn_ticket_no_models')}
+                </p>
+              )}
+            </>
+          ) : (
+            <p className={styles.overviewCardDescription}>
+              {t('accounts.detail_turn_ticket_not_applicable')}
+            </p>
+          )}
         </section>
       </div>
 

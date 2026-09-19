@@ -428,6 +428,57 @@ describe('accountRows', () => {
     expect(row.quota.planType).toBe('plus');
   });
 
+  it('projects credential-scoped 292 ticket state into rows, metrics and filters', () => {
+    const rows = buildAccountRows(
+      [
+        {
+          name: 'ready.codex.json',
+          type: 'codex',
+          codex_turn_ticket: {
+            configured: true,
+            enabled: true,
+            harvester_active: true,
+            target_length: 292,
+            state: 'healthy',
+            healthy_models: 2,
+            total_models: 2,
+            earliest_expires_at: '2026-09-19T21:00:00Z',
+          },
+        },
+        {
+          name: 'missing.codex.json',
+          type: 'codex',
+          codex_turn_ticket: {
+            configured: true,
+            enabled: true,
+            target_length: 292,
+            state: 'missing',
+            healthy_models: 0,
+            total_models: 2,
+          },
+        },
+        { name: 'claude.json', type: 'claude' },
+      ],
+      emptyStores()
+    );
+
+    expect(rows[0].turnTicket).toMatchObject({ state: 'healthy', healthyModels: 2 });
+    expect(buildAccountMetrics(rows).ticketReady).toBe(1);
+    const baseFilters = {
+      provider: 'all',
+      status: 'all' as const,
+      plan: 'all',
+      quotaBand: 'all' as const,
+      search: '',
+    };
+    expect(
+      filterAccountRows(rows, { ...baseFilters, turnTicket: 'ready' }).map((row) => row.fileName)
+    ).toEqual(['ready.codex.json']);
+    expect(
+      filterAccountRows(rows, { ...baseFilters, turnTicket: 'missing' }).map((row) => row.fileName)
+    ).toEqual(['missing.codex.json']);
+  });
+
   it('uses the latest recovery across equally exhausted Codex windows', () => {
     const earlierResetAtMs = Date.parse('2026-07-30T04:00:00Z');
     const laterResetAtMs = Date.parse('2026-07-30T06:00:00Z');
@@ -2328,7 +2379,7 @@ describe('accountRows', () => {
     ).toHaveLength(0);
   });
 
-  it('builds an exclusive six-card status summary with operational context', () => {
+  it('builds the credential status summary with operational context', () => {
     const rows = buildAccountRows(
       [
         { name: 'available.json', type: 'codex', authIndex: 'available' },
@@ -2377,6 +2428,7 @@ describe('accountRows', () => {
       disabled: 1,
       unconfirmed: 1,
       needsInspectionAction: 0,
+      ticketReady: 0,
     });
     expect(
       metrics.available +
@@ -2812,11 +2864,10 @@ describe('accountRows', () => {
       errorStatus: 401,
       fetchedAtMs: 1_000,
     };
-    const splitDisplayQuota =
-      reconcileCodexQuotaEvidence({
-        providerQuota: splitActiveQuota,
-        credentialRefreshAtMs: 2_000,
-      }) ?? { status: 'idle' as const, windows: [] };
+    const splitDisplayQuota = reconcileCodexQuotaEvidence({
+      providerQuota: splitActiveQuota,
+      credentialRefreshAtMs: 2_000,
+    }) ?? { status: 'idle' as const, windows: [] };
     expect(splitDisplayQuota).toEqual({ status: 'idle', windows: [] });
     expect(splitActiveQuota.subscriptionActiveUntil).toBe(splitUntilMs);
 
@@ -3223,10 +3274,7 @@ describe('accountRows', () => {
       undefined,
       undefined,
       new Map([
-        [
-          getAuthFileSelectionKey(file),
-          evidenceBoundary({ authenticationAtMs, rawStatusAtMs: 0 }),
-        ],
+        [getAuthFileSelectionKey(file), evidenceBoundary({ authenticationAtMs, rawStatusAtMs: 0 })],
       ])
     );
 
@@ -3414,9 +3462,7 @@ describe('accountRows', () => {
     }) as TFunction;
 
     expect(getPlanOptions(rows, zhT)).toEqual([{ value: 'pro', label: 'Pro' }]);
-    expect(getPlanOptions([...rows].reverse(), zhT)).toEqual([
-      { value: 'pro', label: 'Pro' },
-    ]);
+    expect(getPlanOptions([...rows].reverse(), zhT)).toEqual([{ value: 'pro', label: 'Pro' }]);
   });
 
   it('keeps a selected canonical pro filter stable when rows change', () => {
@@ -3473,9 +3519,7 @@ describe('accountRows', () => {
     expect(getPlanOptionValue(rows, 'prolite')).toBe('pro_5x');
     expect(getPlanOptionValue(rows, 'pro-lite')).toBe('pro_5x');
     expect(getPlanOptionValue(rows, 'pro_lite')).toBe('pro_5x');
-    expect(getPlanOptionValue(rows, 'self_serve_business_prolite')).toBe(
-      'business_premium_5x'
-    );
+    expect(getPlanOptionValue(rows, 'self_serve_business_prolite')).toBe('business_premium_5x');
     expect(getPlanOptionValue(rows, 'enterprise_cbp_automation')).toBe('enterprise_automation');
   });
 
@@ -3506,9 +3550,9 @@ describe('accountRows', () => {
   });
 
   it('falls back to a readable scoped unknown plan label after its row disappears', () => {
-    expect(
-      getPlanOptionLabel([], 'unknown:antigravity:antigravity future')
-    ).toBe('antigravity future');
+    expect(getPlanOptionLabel([], 'unknown:antigravity:antigravity future')).toBe(
+      'antigravity future'
+    );
     expect(getPlanOptionLabel([], 'unknown:provider:future:premium')).toBe('future:premium');
     expect(getPlanOptionLabel([], 'unknown:provider:future:premium')).not.toContain(
       'unknown:provider:'
@@ -3517,7 +3561,9 @@ describe('accountRows', () => {
 
   it('keeps the unknown plan filter label stable regardless of row order', () => {
     const zhT = ((key: string, options?: { defaultValue?: string }) =>
-      key === 'auth_files.codex_plan_filter_unknown' ? '未知套餐' : (options?.defaultValue ?? key)) as TFunction;
+      key === 'auth_files.codex_plan_filter_unknown'
+        ? '未知套餐'
+        : (options?.defaultValue ?? key)) as TFunction;
 
     const baseFile = { type: 'codex' } as AuthFileItem;
     const nullPlanRow = buildAccountRows(
