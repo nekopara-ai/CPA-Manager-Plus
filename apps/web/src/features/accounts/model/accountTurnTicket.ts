@@ -162,6 +162,18 @@ const unavailableSummary = (applicable: boolean): AccountTurnTicketSummary => ({
   models: [],
 });
 
+/**
+ * CPA keeps `blocked` at model level only: its credential rollup has no blocked branch, so a
+ * policy-blocked credential is folded into `missing`. Promote it back for display and filtering.
+ */
+const isBlockedModel = (model: AccountTurnTicketModelSummary): boolean =>
+  model.ticketState === 'blocked' || model.routingMode === 'blocked';
+
+/** Counts target models that the backend is refusing under the current policy. */
+export const countAccountTurnTicketBlockedModels = (
+  summary: AccountTurnTicketSummary | undefined
+): number => summary?.models.filter(isBlockedModel).length ?? 0;
+
 export const resolveAccountTurnTicket = (
   file: AuthFileItem,
   provider: string
@@ -187,6 +199,17 @@ export const resolveAccountTurnTicket = (
     return latest;
   }, null);
 
+  const blockedModels = models.filter(isBlockedModel).length;
+  const reportedState = normalizeState(raw.state);
+  // A credential whose only target model is policy-blocked arrives as `missing`; surface it as
+  // `blocked` so the block-on-degraded outcome is visible instead of looking like absent data.
+  const state: AccountTurnTicketDisplayState =
+    blockedModels > 0 &&
+    blockedModels === models.length &&
+    (reportedState === 'missing' || reportedState === 'blocked')
+      ? 'blocked'
+      : reportedState;
+
   return {
     applicable: true,
     plan: readString(raw.plan),
@@ -199,7 +222,7 @@ export const resolveAccountTurnTicket = (
     targetLength: readNumber(raw.target_length ?? raw.targetLength) ?? 0,
     degradedLength: readNumber(raw.degraded_length ?? raw.degradedLength),
     blockOnDegraded: readBoolean(raw.block_on_degraded ?? raw.blockOnDegraded, false),
-    state: normalizeState(raw.state),
+    state,
     healthyModels: readNumber(raw.healthy_models ?? raw.healthyModels) ?? 0,
     totalModels: readNumber(raw.total_models ?? raw.totalModels) ?? models.length,
     earliestExpiresAtMs: readTimestampMs(raw.earliest_expires_at ?? raw.earliestExpiresAt),
@@ -245,7 +268,7 @@ export const accountTurnTicketMatchesFilter = (
     case 'unclassified':
       return summary.state === 'unclassified';
     case 'blocked':
-      return summary.state === 'blocked';
+      return summary.state === 'blocked' || countAccountTurnTicketBlockedModels(summary) > 0;
     case 'unknown':
       return ['disabled', 'not_scoped', 'unavailable'].includes(summary.state);
     default:

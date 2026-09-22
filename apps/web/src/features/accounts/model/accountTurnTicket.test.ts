@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   accountTurnTicketMatchesFilter,
+  countAccountTurnTicketBlockedModels,
   getAccountTurnTicketRemaining,
   hasAccountTurnTicketBackoff,
   isAccountTurnTicketReady,
@@ -210,6 +211,61 @@ describe('accountTurnTicket', () => {
     expect(blocked.state).toBe('blocked');
     expect(accountTurnTicketMatchesFilter(blocked, 'blocked')).toBe(true);
     expect(accountTurnTicketMatchesFilter(blocked, 'missing')).toBe(false);
+  });
+
+  it('promotes a fully policy-blocked credential that CPA rolled up as missing', () => {
+    const summary = resolveAccountTurnTicket(
+      {
+        name: 'blocked-credential.json',
+        type: 'codex',
+        codex_turn_ticket: {
+          configured: true,
+          enabled: true,
+          adaptive_injection: true,
+          block_on_degraded: true,
+          target_length: 780,
+          degraded_length: 312,
+          state: 'missing',
+          total_models: 2,
+          models: [
+            { model: 'gpt-5.6-sol', ticket_state: 'blocked', routing_mode: 'blocked' },
+            { model: 'gpt-6-astra', ticket_state: 'blocked', routing_mode: 'blocked' },
+          ],
+        },
+      },
+      'codex'
+    );
+
+    expect(countAccountTurnTicketBlockedModels(summary)).toBe(2);
+    expect(summary.state).toBe('blocked');
+    expect(accountTurnTicketMatchesFilter(summary, 'blocked')).toBe(true);
+    expect(accountTurnTicketMatchesFilter(summary, 'missing')).toBe(false);
+  });
+
+  it('keeps a partially blocked credential on its reported aggregate state', () => {
+    const summary = resolveAccountTurnTicket(
+      {
+        name: 'partially-blocked.json',
+        type: 'codex',
+        codex_turn_ticket: {
+          configured: true,
+          enabled: true,
+          adaptive_injection: true,
+          target_length: 780,
+          state: 'missing',
+          total_models: 2,
+          models: [
+            { model: 'gpt-5.6-sol', ticket_state: 'blocked', routing_mode: 'blocked' },
+            { model: 'gpt-6-astra', ticket_state: 'missing' },
+          ],
+        },
+      },
+      'codex'
+    );
+
+    expect(countAccountTurnTicketBlockedModels(summary)).toBe(1);
+    expect(summary.state).toBe('missing');
+    expect(accountTurnTicketMatchesFilter(summary, 'blocked')).toBe(true);
   });
 });
 

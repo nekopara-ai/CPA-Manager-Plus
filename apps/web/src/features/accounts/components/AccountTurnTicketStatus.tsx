@@ -3,6 +3,7 @@ import { useInterval } from '@/hooks/useInterval';
 import { useState } from 'react';
 import { formatTimestampTitle } from '@/features/accounts/model/accountsPagePresentation';
 import {
+  countAccountTurnTicketBlockedModels,
   formatAccountTurnTicketLength,
   getAccountTurnTicketRemaining,
   isAccountTurnTicketRoutingActive,
@@ -90,6 +91,7 @@ export function AccountTurnTicketStatus({
 
   const targetLength = formatAccountTurnTicketLength(summary.targetLength);
   const naturalPassOnly = isNaturalPassOnly(summary);
+  const blockedModels = countAccountTurnTicketBlockedModels(summary);
   const routingMode = resolveRoutingMode(summary);
   const routingLabelKey = resolveRoutingLabelKey(routingMode);
   const routingText = routingLabelKey ? t(routingLabelKey) : '';
@@ -124,10 +126,12 @@ export function AccountTurnTicketStatus({
       case 'expired_or_invalid':
         return t('accounts.turn_ticket_state_expired', { defaultValue: 'Expired or invalid' });
       case 'missing':
-        return t('accounts.turn_ticket_state_missing', {
-          length: targetLength,
-          defaultValue: `No healthy ${targetLength}`,
-        });
+        return blockedModels > 0
+          ? t('accounts.turn_ticket_state_blocked', { defaultValue: 'Blocked by policy' })
+          : t('accounts.turn_ticket_state_missing', {
+              length: targetLength,
+              defaultValue: `No healthy ${targetLength}`,
+            });
       case 'unclassified':
         return t('accounts.turn_ticket_state_unclassified', {
           defaultValue: 'Awaiting classification',
