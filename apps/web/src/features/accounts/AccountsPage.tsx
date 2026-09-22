@@ -7673,6 +7673,8 @@ export function AccountsPage() {
             { value: 'ready', label: t('accounts.turn_ticket_filter_ready') },
             { value: 'partial', label: t('accounts.turn_ticket_filter_partial') },
             { value: 'missing', label: t('accounts.turn_ticket_filter_missing') },
+            { value: 'unclassified', label: t('accounts.turn_ticket_filter_unclassified') },
+            { value: 'blocked', label: t('accounts.turn_ticket_filter_blocked') },
             { value: 'unknown', label: t('accounts.turn_ticket_filter_unknown') },
           ]}
           onChange={(value) => setTurnTicketFilter(value as AccountTurnTicketFilter)}

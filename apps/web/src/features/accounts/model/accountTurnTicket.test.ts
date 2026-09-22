@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   accountTurnTicketMatchesFilter,
   getAccountTurnTicketRemaining,
+  hasAccountTurnTicketBackoff,
+  isAccountTurnTicketReady,
   resolveAccountTurnTicket,
 } from './accountTurnTicket';
 
@@ -83,6 +85,131 @@ describe('accountTurnTicket', () => {
       unit: 'hour',
     });
     expect(getAccountTurnTicketRemaining(now - 1, now)).toBeNull();
+  });
+
+  it('counts a short routing lease down to seconds instead of rounding up a minute', () => {
+    const now = Date.UTC(2026, 8, 23, 5, 0, 0);
+    expect(getAccountTurnTicketRemaining(now + 44_000, now)).toEqual({
+      value: 44,
+      unit: 'second',
+    });
+    expect(getAccountTurnTicketRemaining(now + 59_999, now)).toEqual({
+      value: 59,
+      unit: 'second',
+    });
+    expect(getAccountTurnTicketRemaining(now + 60_000, now)).toEqual({
+      value: 1,
+      unit: 'minute',
+    });
+  });
+
+  it('normalizes .145 adaptive fields and treats a natural pass as ready', () => {
+    const summary = resolveAccountTurnTicket(
+      {
+        name: 'adaptive.json',
+        type: 'codex',
+        codex_turn_ticket: {
+          configured: true,
+          enabled: true,
+          injection_enabled: true,
+          adaptive_injection: true,
+          harvester_active: true,
+          target_length: 780,
+          degraded_length: 312,
+          block_on_degraded: true,
+          state: 'healthy',
+          healthy_models: 2,
+          total_models: 2,
+          models: [
+            {
+              model: 'gpt-5.6-sol',
+              ticket_state: 'direct',
+              routing_mode: 'direct',
+              last_observed_at: '2026-09-23T05:00:00Z',
+              last_observed_length: 780,
+              last_observed_healthy: true,
+              probe_in_flight: false,
+              probe_attempts: 3,
+              last_probe_complete: true,
+              last_probe_model_match: true,
+              next_probe_at: '2026-09-23T05:05:00Z',
+            },
+            {
+              model: 'gpt-6-astra',
+              ticket_state: 'healthy',
+              routing_mode: 'inject',
+              routing_cookie_names: ['__Secure-next-auth.session-token', 'oai-did'],
+              routing_validated_at: '2026-09-23T04:59:00Z',
+              routing_expires_at: '2026-09-23T05:04:00Z',
+              ticket_length: 780,
+              expires_at: '2026-09-23T05:04:00Z',
+              probe_backoff_until: '2026-09-23T05:02:00Z',
+            },
+          ],
+        },
+      },
+      'codex'
+    );
+
+    expect(summary).toMatchObject({
+      targetLength: 780,
+      degradedLength: 312,
+      blockOnDegraded: true,
+      injectionEnabled: true,
+      adaptiveInjection: true,
+      state: 'healthy',
+      latestObservedLength: 780,
+    });
+    expect(isAccountTurnTicketReady(summary)).toBe(true);
+    expect(summary.models[0]).toMatchObject({
+      ticketState: 'direct',
+      routingMode: 'direct',
+      probeAttempts: 3,
+      lastProbeComplete: true,
+      lastProbeModelMatch: true,
+    });
+    expect(summary.models[1].routingCookieNames).toEqual([
+      '__Secure-next-auth.session-token',
+      'oai-did',
+    ]);
+    expect(hasAccountTurnTicketBackoff(summary.models[1], Date.parse('2026-09-23T05:01:00Z'))).toBe(
+      true
+    );
+    expect(hasAccountTurnTicketBackoff(summary.models[1], Date.parse('2026-09-23T05:03:00Z'))).toBe(
+      false
+    );
+  });
+
+  it('keeps unclassified and blocked distinct from unavailable', () => {
+    const build = (state: string, ticketState: string) =>
+      resolveAccountTurnTicket(
+        {
+          name: `${state}.json`,
+          type: 'codex',
+          codex_turn_ticket: {
+            configured: true,
+            enabled: true,
+            adaptive_injection: true,
+            target_length: 780,
+            degraded_length: 312,
+            state,
+            total_models: 1,
+            models: [{ model: 'gpt-5.6-sol', ticket_state: ticketState, routing_mode: state }],
+          },
+        },
+        'codex'
+      );
+
+    const unclassified = build('unclassified', 'unclassified');
+    expect(unclassified.state).toBe('unclassified');
+    expect(accountTurnTicketMatchesFilter(unclassified, 'unclassified')).toBe(true);
+    expect(accountTurnTicketMatchesFilter(unclassified, 'unknown')).toBe(false);
+    expect(accountTurnTicketMatchesFilter(unclassified, 'ready')).toBe(false);
+
+    const blocked = build('blocked', 'blocked');
+    expect(blocked.state).toBe('blocked');
+    expect(accountTurnTicketMatchesFilter(blocked, 'blocked')).toBe(true);
+    expect(accountTurnTicketMatchesFilter(blocked, 'missing')).toBe(false);
   });
 });
 

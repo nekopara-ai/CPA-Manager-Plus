@@ -270,8 +270,8 @@ export function AccountConfigurationTab({
                 value={draft.codexTicketPlan || 'auto'}
                 options={[
                   { value: 'auto', label: t('accounts.turn_ticket_plan_auto') },
-                  { value: 'pro', label: 'Pro / Personal (292)' },
-                  { value: 'team', label: 'Team / Business (332)' },
+                  { value: 'pro', label: t('accounts.turn_ticket_plan_option_pro') },
+                  { value: 'team', label: t('accounts.turn_ticket_plan_option_team') },
                 ]}
                 onChange={(value) => editor.updateField('codexTicketPlan', value)}
                 disabled={disabled}

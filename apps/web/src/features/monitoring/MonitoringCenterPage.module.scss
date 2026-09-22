@@ -1591,12 +1591,12 @@
   border-radius: 4px;
   padding: 0 4px;
 
-  &.realtimeTurnState292 {
+  &.realtimeTurnStateHealthy {
     background: var(--data-badge-success-bg);
     color: var(--data-badge-success-text);
   }
 
-  &.realtimeTurnState312 {
+  &.realtimeTurnStateDegraded {
     background: var(--data-badge-warning-bg);
     color: var(--data-badge-warning-text);
   }

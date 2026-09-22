@@ -59,6 +59,7 @@ import {
 import { buildAccountSubscriptionPresentation } from './accountSubscriptionPresentation';
 import {
   accountTurnTicketMatchesFilter,
+  isAccountTurnTicketReady,
   resolveAccountTurnTicket,
   type AccountTurnTicketFilter,
   type AccountTurnTicketSummary,
@@ -695,7 +696,7 @@ export const buildAccountMetrics = (
   };
 
   rows.forEach((row) => {
-    if (row.provider === 'codex' && row.turnTicket?.state === 'healthy') {
+    if (row.provider === 'codex' && isAccountTurnTicketReady(row.turnTicket)) {
       metrics.ticketReady += 1;
     }
     const status = classifyAccountMetricStatus(row, context);

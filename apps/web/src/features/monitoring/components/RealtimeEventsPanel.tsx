@@ -306,11 +306,16 @@ const getRealtimeDurationToneClass = (value: number | null | undefined) => {
 };
 
 // Ticket shapes are subscription-specific observations, not model-quality proof.
+// CPA `turn-ticket` policy lengths: healthy 780 for personal and Team, degraded 312.
+// The legacy pairs are kept so history recorded before the policy change still renders.
+const TURN_STATE_HEALTHY_LENGTHS = new Set([292, 332, 780]);
+const TURN_STATE_DEGRADED_LENGTHS = new Set([312, 356]);
+
 const turnStateLengthColorClass = (value: number | null) =>
-  value === 292 || value === 332
-    ? styles.realtimeTurnState292
-    : value === 312 || value === 356
-      ? styles.realtimeTurnState312
+  value !== null && TURN_STATE_HEALTHY_LENGTHS.has(value)
+    ? styles.realtimeTurnStateHealthy
+    : value !== null && TURN_STATE_DEGRADED_LENGTHS.has(value)
+      ? styles.realtimeTurnStateDegraded
       : '';
 
 const formatRealtimeDateParts = (timestampMs: number, locale: string) => {

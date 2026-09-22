@@ -9586,6 +9586,123 @@ describe('AccountsPage replacement flows', () => {
     expect(readText(ticketDetail)).toContain('healthy_ticket');
   });
 
+  it('surfaces adaptive routing cookies and probe state from the CPA .145 snapshot', async () => {
+    mocks.files = [
+      {
+        ...makeCodexFile('adaptive.json', 'auth-adaptive', 'adaptive@example.com'),
+        codex_turn_ticket: {
+          configured: true,
+          enabled: true,
+          injection_enabled: true,
+          adaptive_injection: true,
+          harvester_active: true,
+          target_length: 780,
+          degraded_length: 312,
+          block_on_degraded: true,
+          state: 'healthy',
+          healthy_models: 2,
+          total_models: 2,
+          earliest_expires_at: '2026-09-23T05:04:00Z',
+          models: [
+            {
+              model: 'gpt-5.6-sol',
+              ticket_state: 'direct',
+              routing_mode: 'direct',
+              last_observed_at: '2026-09-23T05:00:00Z',
+              last_observed_length: 780,
+              last_observed_healthy: true,
+            },
+            {
+              model: 'gpt-6-astra',
+              ticket_state: 'healthy',
+              routing_mode: 'inject',
+              routing_cookie_names: ['__Secure-next-auth.session-token', 'oai-did'],
+              routing_validated_at: '2026-09-23T04:59:00Z',
+              routing_expires_at: '2026-09-23T05:04:00Z',
+              ticket_length: 780,
+              expires_at: '2026-09-23T05:04:00Z',
+              probe_attempts: 4,
+              last_probe_complete: true,
+              last_probe_model_match: true,
+            },
+          ],
+        },
+      },
+    ];
+
+    const renderer = await renderAccountsPage();
+    const ticketStatus = renderer.root.findByProps({ 'data-turn-ticket-state': 'healthy' });
+
+    await act(async () => {
+      ticketStatus.props.onClick({ stopPropagation: vi.fn() });
+      await Promise.resolve();
+    });
+
+    const ticketDetail = renderer.root.findByProps({ 'data-overview-section': 'turn-ticket' });
+    expect(ticketDetail.findByProps({ 'data-turn-ticket-model': 'gpt-5.6-sol' })).toBeTruthy();
+    expect(ticketDetail.findByProps({ 'data-turn-ticket-model-state': 'direct' })).toBeTruthy();
+    expect(ticketDetail.findByProps({ 'data-turn-ticket-model-state': 'healthy' })).toBeTruthy();
+    const detailText = readText(ticketDetail);
+    expect(detailText).toContain('__Secure-next-auth.session-token');
+    expect(detailText).toContain('oai-did');
+    expect(detailText).toContain('accounts.detail_turn_ticket_routing_mode');
+    expect(detailText).toContain('accounts.detail_turn_ticket_degraded_length');
+    expect(detailText).toContain('accounts.detail_turn_ticket_block_on_degraded');
+    expect(detailText).toContain('accounts.detail_turn_ticket_probe_attempts');
+  });
+
+  it('reports a globally disabled ticket feature as disabled, not as unavailable', async () => {
+    mocks.files = [
+      {
+        ...makeCodexFile('disabled.json', 'auth-disabled', 'disabled@example.com'),
+        codex_turn_ticket: {
+          configured: true,
+          enabled: false,
+          injection_enabled: false,
+          adaptive_injection: true,
+          harvester_active: true,
+          target_length: 780,
+          degraded_length: 312,
+          block_on_degraded: false,
+          state: 'disabled',
+          healthy_models: 0,
+          total_models: 0,
+        },
+      },
+    ];
+
+    const renderer = await renderAccountsPage();
+    const ticketStatus = renderer.root.findByProps({ 'data-turn-ticket-state': 'disabled' });
+    expect(readText(ticketStatus)).toContain('accounts.turn_ticket_state_disabled');
+    expect(ticketStatus.props.title).not.toContain('accounts.turn_ticket_injection_active');
+  });
+
+  it('keeps an unclassified adaptive route out of the unavailable bucket', async () => {
+    mocks.files = [
+      {
+        ...makeCodexFile('unclassified.json', 'auth-unclassified', 'unclassified@example.com'),
+        codex_turn_ticket: {
+          configured: true,
+          enabled: true,
+          injection_enabled: true,
+          adaptive_injection: true,
+          harvester_active: true,
+          target_length: 780,
+          degraded_length: 312,
+          state: 'unclassified',
+          healthy_models: 0,
+          total_models: 1,
+          models: [{ model: 'gpt-5.6-sol', ticket_state: 'unclassified' }],
+        },
+      },
+    ];
+
+    const renderer = await renderAccountsPage();
+    const ticketStatus = renderer.root.findByProps({ 'data-turn-ticket-state': 'unclassified' });
+    expect(readText(ticketStatus)).toContain('accounts.turn_ticket_state_unclassified');
+    expect(ticketStatus.props.title).not.toContain('accounts.turn_ticket_state_unavailable');
+  });
+
   it('renders historical usage alongside the quota trigger', async () => {
     const file = mocks.files[0];
     const selectionKey = getAuthFileSelectionKey(file);
