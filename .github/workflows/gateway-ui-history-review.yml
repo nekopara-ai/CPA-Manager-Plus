@@ -1,0 +1,27 @@
+name: Gateway UI history review
+on:
+  push:
+    branches: [codex/gateway-ui-verify-20260925]
+    paths: [.github/workflows/gateway-ui-history-review.yml]
+permissions:
+  contents: read
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: a0b3d4aa860d1c90d260c0d6fbb753e5ccd3b981
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Export fixed source histories
+        run: |
+          git branch review-maintained a0b3d4aa860d1c90d260c0d6fbb753e5ccd3b981
+          git branch review-main 602deadd6ba608f39993cd51112738907af46cf5
+          git bundle create /tmp/gateway-ui-history.bundle review-maintained review-main
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gateway-ui-history
+          path: /tmp/gateway-ui-history.bundle
+          retention-days: 2
