@@ -1,0 +1,26 @@
+name: Gateway UI maintained source
+on:
+  push:
+    branches: [codex/gateway-ui-verify-20260925]
+    paths: [.github/workflows/gateway-ui-maintained-source.yml]
+permissions:
+  contents: read
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: a0b3d4aa860d1c90d260c0d6fbb753e5ccd3b981
+          persist-credentials: false
+      - run: |
+          git rev-parse HEAD > /tmp/maintained-source-sha.txt
+          git archive --format=tar HEAD > /tmp/maintained-source.tar
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gateway-ui-maintained-source
+          path: |
+            /tmp/maintained-source.tar
+            /tmp/maintained-source-sha.txt
+          retention-days: 2
