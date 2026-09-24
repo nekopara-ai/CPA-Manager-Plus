@@ -1,0 +1,45 @@
+name: Gateway UI review workspace
+on:
+  push:
+    branches: [codex/gateway-ui-verify-20260925]
+    paths: [.github/workflows/gateway-ui-review.yml]
+permissions:
+  contents: read
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: 602deadd6ba608f39993cd51112738907af46cf5
+          persist-credentials: false
+      - name: Export fixed source
+        run: |
+          git rev-parse HEAD > /tmp/gateway-ui-source-sha.txt
+          git archive --format=tar HEAD > /tmp/gateway-ui-source.tar
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gateway-ui-source
+          path: |
+            /tmp/gateway-ui-source.tar
+            /tmp/gateway-ui-source-sha.txt
+          retention-days: 2
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - name: Export locked dependencies for offline verification
+        shell: bash
+        run: |
+          cp "$(command -v node)" /tmp/gateway-ui-node
+          find . -name node_modules -type d -prune -print0 | tar --null -T - -czf /tmp/gateway-ui-dependencies.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gateway-ui-dependencies
+          compression-level: 0
+          path: |
+            /tmp/gateway-ui-dependencies.tar.gz
+            /tmp/gateway-ui-node
+          retention-days: 2
