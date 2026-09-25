@@ -1,0 +1,106 @@
+name: Gateway UI reviewed source integration
+on:
+  push:
+    branches: [codex/gateway-ui-verify-20260925]
+    paths: [.github/workflows/gateway-ui-resume-apply.yml]
+permissions:
+  contents: read
+concurrency:
+  group: gateway-ui-reviewed-source-integration
+  cancel-in-progress: false
+jobs:
+  integrate:
+    if: github.repository == 'nekopara-ai/CPA-Manager-Plus'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout reviewed patch material
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          path: materials
+          persist-credentials: false
+      - name: Decode and verify reviewed text patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import base64, hashlib, lzma, pathlib
+          parts = [pathlib.Path(f'materials/.dev/gateway-ui-resume-v2-{i}.b64').read_text().strip() for i in range(4)]
+          data = lzma.decompress(base64.b64decode(''.join(parts), validate=True))
+          assert hashlib.sha256(data).hexdigest() == 'cdf530d9f3cef86d714dde26af6d6f121a9d0d427671cc99867428b119c0e0c0', 'patch digest mismatch'
+          assert len(data) == 121916, 'patch size mismatch'
+          pathlib.Path('gateway-ui-reviewed.patch').write_bytes(data)
+          PY
+      - name: Checkout maintained source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          path: source
+          ref: a0b3d4aa860d1c90d260c0d6fbb753e5ccd3b981
+          fetch-depth: 0
+      - name: Integrate fixed main while retaining fork billing semantics
+        working-directory: source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          test "$(git rev-parse refs/remotes/origin/codex/cpamp-effective-tier)" = a0b3d4aa860d1c90d260c0d6fbb753e5ccd3b981
+          test "$(git rev-parse refs/remotes/origin/main)" = 602deadd6ba608f39993cd51112738907af46cf5
+          git update-ref refs/remotes/origin/review-main 602deadd6ba608f39993cd51112738907af46cf5
+          if ! git merge --no-ff --no-commit origin/review-main; then
+            git rev-parse -q --verify MERGE_HEAD >/dev/null
+          fi
+          python3 - <<'PY'
+          import pathlib, re, subprocess
+          root = pathlib.Path('apps/manager-server/internal')
+          paths = ['repository/usageevent/repository.go', 'usage/import.go', 'usage/import_test.go']
+          conflicts = subprocess.check_output(['git','diff','--name-only','--diff-filter=U'], text=True).splitlines()
+          assert sorted(conflicts) == sorted(str(root / p) for p in paths), conflicts
+          p = root / paths[0]
+          s = p.read_text()
+          s, n = re.subn(r'<<<<<<< HEAD\n.*?=======\n>>>>>>> origin/review-main\n', '', s, flags=re.S)
+          assert n == 1
+          s = s.replace('event.ServiceTier = usage.EffectiveServiceTier(', 'event.ServiceTier = usage.ResolveEffectiveServiceTier(')
+          s = s.replace('}, event.RequestServiceTier, event.ServiceTier, event.ResponseServiceTier)', '}, event.EffectiveServiceTier, event.RequestServiceTier, event.ServiceTier, event.ResponseServiceTier)')
+          p.write_text(s)
+          p = root / paths[1]
+          s, n = re.subn(r'<<<<<<< HEAD\n.*?=======\n(.*?)>>>>>>> origin/review-main\n', r'\1', p.read_text(), flags=re.S)
+          assert n == 1
+          s = s.replace('event.ServiceTier = EffectiveServiceTier(', 'event.ServiceTier = ResolveEffectiveServiceTier(')
+          s = s.replace('}, event.RequestServiceTier, event.ServiceTier, event.ResponseServiceTier)', '}, event.EffectiveServiceTier, event.RequestServiceTier, event.ServiceTier, event.ResponseServiceTier)')
+          p.write_text(s)
+          p = root / paths[2]
+          s, n = re.subn(r'<<<<<<< HEAD\n(.*?)=======\n(.*?)>>>>>>> origin/review-main\n', lambda m: m[1]+'\t\t\t}\n\t\t})\n\t}\n}\n\n'+m[2], p.read_text(), flags=re.S)
+          assert n == 1
+          p.write_text(s)
+          subprocess.run(['gofmt','-w',*(str(root / p) for p in paths)], check=True)
+          subprocess.run(['git','add',*(str(root / p) for p in paths)], check=True)
+          PY
+          test "$(git write-tree)" = 3675a0862c4126e683f9031eb832634c26b3d7c7
+          git commit -m 'merge: integrate upstream v1.14.0 while preserving effective-tier billing'
+      - name: Apply exact gateway UI implementation
+        working-directory: source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git apply --check ../gateway-ui-reviewed.patch
+          git apply --index ../gateway-ui-reviewed.patch
+          test "$(git write-tree)" = 28d919957c6aa125c8295d8818096a7bbc1f6b2a
+          test -z "$(git diff --cached --name-only -- .github)"
+          git diff --cached --check
+          git commit -m 'feat: adapt Codex gateway mint configuration and transport readiness UI'
+          git fetch --no-tags origin refs/heads/codex/gateway-mint-ui-complete-20260925
+          test "$(git rev-parse FETCH_HEAD)" = a0b3d4aa860d1c90d260c0d6fbb753e5ccd3b981
+          git push origin HEAD:refs/heads/codex/gateway-mint-ui-complete-20260925
+          git rev-parse HEAD > "$RUNNER_TEMP/gateway-ui-candidate-sha.txt"
+          git rev-parse HEAD^{tree} >> "$RUNNER_TEMP/gateway-ui-candidate-sha.txt"
+          git archive --format=tar.gz HEAD > "$RUNNER_TEMP/gateway-ui-candidate-source.tar.gz"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gateway-ui-reviewed-candidate
+          path: |
+            ${{ runner.temp }}/gateway-ui-candidate-sha.txt
+            ${{ runner.temp }}/gateway-ui-candidate-source.tar.gz
+          retention-days: 2
