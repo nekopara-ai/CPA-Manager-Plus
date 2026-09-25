@@ -1,3 +1,4 @@
+import { normalizeMintStates, gatewayReadiness, type MintTransportState } from './gatewayMint';
 import type {
   AuthFileItem,
   CodexTurnTicketCredentialSnapshot,
@@ -21,6 +22,7 @@ export type AccountTurnTicketRemainingUnit = 'second' | 'minute' | 'hour' | 'day
 
 export interface AccountTurnTicketModelSummary {
   model: string;
+  mintStates?: MintTransportState[];
   ticketState: string;
   routingMode: string;
   routingCookieNames: string[];
@@ -47,6 +49,7 @@ export interface AccountTurnTicketModelSummary {
 }
 
 export interface AccountTurnTicketSummary {
+  gatewayMint?: boolean;
   plan?: string;
   planSource?: string;
   applicable: boolean;
@@ -105,7 +108,7 @@ const readTimestampMs = (value: unknown): number | null => {
   if (numeric !== null && numeric > 0) return numeric < 1e12 ? numeric * 1000 : numeric;
   if (typeof value !== 'string' || !value.trim()) return null;
   const parsed = Date.parse(value);
-  return Number.isFinite(parsed) ? parsed : null;
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 };
 
 const normalizeState = (value: unknown): CodexTurnTicketState => {
@@ -115,6 +118,7 @@ const normalizeState = (value: unknown): CodexTurnTicketState => {
 
 const normalizeModel = (model: CodexTurnTicketModelSnapshot): AccountTurnTicketModelSummary => ({
   model: readString(model.model) || '-',
+  mintStates: normalizeMintStates(model),
   ticketState: readString(model.ticket_state ?? model.ticketState) || 'missing',
   routingMode: readString(model.routing_mode ?? model.routingMode),
   routingCookieNames: readStringList(model.routing_cookie_names ?? model.routingCookieNames),
@@ -210,7 +214,9 @@ export const resolveAccountTurnTicket = (
       ? 'blocked'
       : reportedState;
 
-  return {
+  const gatewayMint = models.some((model) => model.mintStates !== undefined);
+  const summary: AccountTurnTicketSummary = {
+    gatewayMint,
     applicable: true,
     plan: readString(raw.plan),
     planSource: readString(raw.plan_source),
@@ -230,6 +236,7 @@ export const resolveAccountTurnTicket = (
     latestObservedLength: latestObservation?.lastObservedLength ?? null,
     models,
   };
+  return gatewayMint ? { ...summary, ...gatewayReadiness(summary) } : summary;
 };
 
 /** Natural pass: the upstream request was accepted without cookie injection. */
@@ -238,7 +245,9 @@ export const isAccountTurnTicketNaturalPass = (state: string | undefined): boole
 
 /** Ready means every target model is either Healthy or a natural pass. */
 export const isAccountTurnTicketReady = (summary: AccountTurnTicketSummary | undefined): boolean =>
-  summary?.state === 'healthy' || summary?.state === 'direct';
+  summary?.gatewayMint
+    ? gatewayReadiness(summary).state === 'healthy'
+    : summary?.state === 'healthy' || summary?.state === 'direct';
 
 /** Injecting means a validated routing-cookie combination is in use for this model. */
 export const isAccountTurnTicketRoutingActive = (
@@ -250,7 +259,9 @@ export const hasAccountTurnTicketBackoff = (
   model: AccountTurnTicketModelSummary,
   nowMs = Date.now()
 ): boolean =>
-  (model.probeBackoffUntilMs ?? 0) > nowMs || (model.harvestBackoffUntilMs ?? 0) > nowMs;
+  (model.probeBackoffUntilMs ?? 0) > nowMs ||
+  (model.harvestBackoffUntilMs ?? 0) > nowMs ||
+  (model.mintStates?.some((state) => (state.nextAttemptAtMs ?? 0) > nowMs) ?? false);
 
 export const accountTurnTicketMatchesFilter = (
   summary: AccountTurnTicketSummary | undefined,
@@ -258,6 +269,7 @@ export const accountTurnTicketMatchesFilter = (
 ): boolean => {
   if (!filter || filter === 'all') return true;
   if (!summary?.applicable) return false;
+  if (summary.gatewayMint) summary = { ...summary, ...gatewayReadiness(summary) };
   switch (filter) {
     case 'ready':
       return summary.state === 'healthy' || summary.state === 'direct';

@@ -1,3 +1,5 @@
+import { GatewayMintConfigEditor } from './GatewayMintConfigEditor';
+import { MINT_KEYS } from '@/types/gatewayMintConfig';
 import {
   useLayoutEffect,
   useCallback,
@@ -49,6 +51,7 @@ import type { ApiKeyMutation } from './ApiKeysCardEditor';
 import styles from './VisualConfigEditor.module.scss';
 
 type VisualSectionId =
+  | 'mint'
   | 'server'
   | 'tls'
   | 'remote'
@@ -332,6 +335,15 @@ export function VisualConfigEditor({
           'transientErrorCooldownSeconds',
           'authAutoRefreshWorkers',
         ]),
+      },
+      {
+        id: 'mint',
+        title: t('gateway_mint.title'),
+        description: t('gateway_mint.config_description'),
+        icon: IconShield,
+        errorCount: countErrors(
+          MINT_KEYS.map((key) => `codexTurnTicket.${key}` as VisualConfigFieldPath)
+        ),
       },
       {
         id: 'quota',
@@ -729,9 +741,7 @@ export function VisualConfigEditor({
                       variant="secondary"
                       size="xs"
                       disabled={disabled || values.rmSecretKeyAction === 'unchanged'}
-                      onClick={() =>
-                        onChange({ rmSecretKey: '', rmSecretKeyAction: 'unchanged' })
-                      }
+                      onClick={() => onChange({ rmSecretKey: '', rmSecretKeyAction: 'unchanged' })}
                     >
                       {t('config_management.visual.sections.remote.secret_key_keep')}
                     </Button>
@@ -963,12 +973,8 @@ export function VisualConfigEditor({
                 )}
               >
                 <FieldShell
-                  label={t(
-                    'config_management.visual.sections.system.devin_sensitive_words_label'
-                  )}
-                  hint={t(
-                    'config_management.visual.sections.system.devin_sensitive_words_hint'
-                  )}
+                  label={t('config_management.visual.sections.system.devin_sensitive_words_label')}
+                  hint={t('config_management.visual.sections.system.devin_sensitive_words_hint')}
                 >
                   <StringListEditor
                     value={values.devinSensitiveWords}
@@ -1147,9 +1153,7 @@ export function VisualConfigEditor({
                   value={values.gptImage2BaseModel}
                   onChange={(e) => onChange({ gptImage2BaseModel: e.target.value })}
                   disabled={disabled}
-                  hint={t(
-                    'config_management.visual.sections.network.gpt_image_2_base_model_hint'
-                  )}
+                  hint={t('config_management.visual.sections.network.gpt_image_2_base_model_hint')}
                 />
                 <Input
                   label={t('config_management.visual.sections.network.video_result_auth_cache_ttl')}
@@ -1318,6 +1322,22 @@ export function VisualConfigEditor({
                 </SectionStack>
               </SectionSubsection>
             </SectionStack>
+          </ConfigSection>
+
+          <ConfigSection
+            id="mint"
+            ref={(node) => {
+              sectionRefs.current.mint = node;
+            }}
+            title={t('gateway_mint.title')}
+            description={t('gateway_mint.config_description')}
+            icon={<IconShield size={20} />}
+          >
+            <GatewayMintConfigEditor
+              value={values.codexTurnTicket}
+              disabled={disabled}
+              onChange={(codexTurnTicket) => onChange({ codexTurnTicket })}
+            />
           </ConfigSection>
 
           <ConfigSection

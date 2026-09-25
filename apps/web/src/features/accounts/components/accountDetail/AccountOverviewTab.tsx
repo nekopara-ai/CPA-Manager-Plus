@@ -1,3 +1,4 @@
+import { GatewayMintStatus } from '../GatewayMintStatus';
 import { useTranslation } from 'react-i18next';
 import {
   IconChartLine,
@@ -325,273 +326,277 @@ export function AccountOverviewTab({
           </div>
 
           {turnTicket?.applicable ? (
-            <>
-              <dl className={styles.overviewTurnTicketSummary}>
-                <div>
-                  <dt>{t('accounts.turn_ticket_plan')}</dt>
-                  <dd>
-                    {turnTicket.plan === 'team'
-                      ? 'Team / Business'
-                      : turnTicket.plan === 'pro'
-                        ? 'Pro / Personal'
-                        : '—'}
-                  </dd>
-                </div>
-                <div>
-                  <dt>{t('accounts.turn_ticket_plan_source')}</dt>
-                  <dd>
-                    {t(`accounts.turn_ticket_plan_source_${turnTicket.planSource || 'config'}`)}
-                  </dd>
-                </div>
-                <div>
-                  <dt>{t('accounts.detail_turn_ticket_models')}</dt>
-                  <dd>
-                    {turnTicket.healthyModels}/{turnTicket.totalModels}
-                  </dd>
-                </div>
-                <div>
-                  <dt>{t('accounts.detail_turn_ticket_target_length')}</dt>
-                  <dd>{formatAccountTurnTicketLength(turnTicket.targetLength)}</dd>
-                </div>
-                <div>
-                  <dt>{t('accounts.detail_turn_ticket_degraded_length')}</dt>
-                  <dd>
-                    {turnTicket.degradedLength === null
-                      ? '—'
-                      : formatAccountTurnTicketLength(turnTicket.degradedLength)}
-                  </dd>
-                </div>
-                <div>
-                  <dt>{t('accounts.detail_turn_ticket_block_on_degraded')}</dt>
-                  <dd>
-                    {t(
-                      turnTicket.blockOnDegraded
-                        ? 'accounts.detail_turn_ticket_policy_enabled'
-                        : 'accounts.detail_turn_ticket_policy_disabled'
-                    )}
-                  </dd>
-                </div>
-                <div>
-                  <dt>{t('accounts.detail_turn_ticket_harvester')}</dt>
-                  <dd>
-                    {t(
-                      turnTicket.harvesterActive
-                        ? 'accounts.detail_turn_ticket_harvester_active'
-                        : 'accounts.detail_turn_ticket_harvester_inactive'
-                    )}
-                  </dd>
-                </div>
-                <div>
-                  <dt>{t('accounts.detail_turn_ticket_feature_enabled')}</dt>
-                  <dd>
-                    {t(
-                      turnTicket.enabled
-                        ? 'accounts.detail_turn_ticket_policy_enabled'
-                        : 'accounts.detail_turn_ticket_policy_disabled'
-                    )}
-                  </dd>
-                </div>
-                <div>
-                  <dt>{t('accounts.detail_turn_ticket_injection_enabled')}</dt>
-                  <dd>
-                    {t(
-                      turnTicket.injectionEnabled
-                        ? 'accounts.detail_turn_ticket_policy_enabled'
-                        : 'accounts.detail_turn_ticket_policy_disabled'
-                    )}
-                  </dd>
-                </div>
-                <div>
-                  <dt>{t('accounts.detail_turn_ticket_adaptive_injection')}</dt>
-                  <dd>
-                    {t(
-                      turnTicket.adaptiveInjection
-                        ? 'accounts.detail_turn_ticket_policy_enabled'
-                        : 'accounts.detail_turn_ticket_policy_disabled'
-                    )}
-                  </dd>
-                </div>
-                <div>
-                  <dt>{t('accounts.detail_turn_ticket_earliest_expiry')}</dt>
-                  <dd>
-                    {turnTicket.earliestExpiresAtMs === null
-                      ? '—'
-                      : formatTimestampTitle(turnTicket.earliestExpiresAtMs, i18n.language)}
-                  </dd>
-                </div>
-              </dl>
+            turnTicket.gatewayMint ? (
+              <GatewayMintStatus summary={turnTicket} detail />
+            ) : (
+              <>
+                <dl className={styles.overviewTurnTicketSummary}>
+                  <div>
+                    <dt>{t('accounts.turn_ticket_plan')}</dt>
+                    <dd>
+                      {turnTicket.plan === 'team'
+                        ? 'Team / Business'
+                        : turnTicket.plan === 'pro'
+                          ? 'Pro / Personal'
+                          : '—'}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>{t('accounts.turn_ticket_plan_source')}</dt>
+                    <dd>
+                      {t(`accounts.turn_ticket_plan_source_${turnTicket.planSource || 'config'}`)}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>{t('accounts.detail_turn_ticket_models')}</dt>
+                    <dd>
+                      {turnTicket.healthyModels}/{turnTicket.totalModels}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>{t('accounts.detail_turn_ticket_target_length')}</dt>
+                    <dd>{formatAccountTurnTicketLength(turnTicket.targetLength)}</dd>
+                  </div>
+                  <div>
+                    <dt>{t('accounts.detail_turn_ticket_degraded_length')}</dt>
+                    <dd>
+                      {turnTicket.degradedLength === null
+                        ? '—'
+                        : formatAccountTurnTicketLength(turnTicket.degradedLength)}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>{t('accounts.detail_turn_ticket_block_on_degraded')}</dt>
+                    <dd>
+                      {t(
+                        turnTicket.blockOnDegraded
+                          ? 'accounts.detail_turn_ticket_policy_enabled'
+                          : 'accounts.detail_turn_ticket_policy_disabled'
+                      )}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>{t('accounts.detail_turn_ticket_harvester')}</dt>
+                    <dd>
+                      {t(
+                        turnTicket.harvesterActive
+                          ? 'accounts.detail_turn_ticket_harvester_active'
+                          : 'accounts.detail_turn_ticket_harvester_inactive'
+                      )}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>{t('accounts.detail_turn_ticket_feature_enabled')}</dt>
+                    <dd>
+                      {t(
+                        turnTicket.enabled
+                          ? 'accounts.detail_turn_ticket_policy_enabled'
+                          : 'accounts.detail_turn_ticket_policy_disabled'
+                      )}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>{t('accounts.detail_turn_ticket_injection_enabled')}</dt>
+                    <dd>
+                      {t(
+                        turnTicket.injectionEnabled
+                          ? 'accounts.detail_turn_ticket_policy_enabled'
+                          : 'accounts.detail_turn_ticket_policy_disabled'
+                      )}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>{t('accounts.detail_turn_ticket_adaptive_injection')}</dt>
+                    <dd>
+                      {t(
+                        turnTicket.adaptiveInjection
+                          ? 'accounts.detail_turn_ticket_policy_enabled'
+                          : 'accounts.detail_turn_ticket_policy_disabled'
+                      )}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>{t('accounts.detail_turn_ticket_earliest_expiry')}</dt>
+                    <dd>
+                      {turnTicket.earliestExpiresAtMs === null
+                        ? '—'
+                        : formatTimestampTitle(turnTicket.earliestExpiresAtMs, i18n.language)}
+                    </dd>
+                  </div>
+                </dl>
 
-              {turnTicket.models.length > 0 ? (
-                <div className={styles.overviewTurnTicketModels}>
-                  {turnTicket.models.map((model) => (
-                    <article
-                      key={model.model}
-                      className={styles.overviewTurnTicketModel}
-                      data-turn-ticket-model={model.model}
-                    >
-                      <div className={styles.overviewTurnTicketModelHeader}>
-                        <strong>{model.model}</strong>
-                        <span data-turn-ticket-model-state={model.ticketState}>
-                          {model.routingMode
-                            ? t(`accounts.turn_ticket_routing_${model.routingMode}`, {
-                                defaultValue: model.routingMode,
-                              })
-                            : t(`accounts.turn_ticket_model_state_${model.ticketState}`, {
-                                defaultValue: model.ticketState,
-                              })}
-                        </span>
-                      </div>
-                      <dl className={styles.overviewTurnTicketModelFields}>
-                        <div>
-                          <dt>{t('accounts.detail_turn_ticket_model_state')}</dt>
-                          <dd>
-                            {t(`accounts.turn_ticket_model_state_${model.ticketState}`, {
-                              defaultValue: model.ticketState,
-                            })}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt>{t('accounts.detail_turn_ticket_routing_mode')}</dt>
-                          <dd>
+                {turnTicket.models.length > 0 ? (
+                  <div className={styles.overviewTurnTicketModels}>
+                    {turnTicket.models.map((model) => (
+                      <article
+                        key={model.model}
+                        className={styles.overviewTurnTicketModel}
+                        data-turn-ticket-model={model.model}
+                      >
+                        <div className={styles.overviewTurnTicketModelHeader}>
+                          <strong>{model.model}</strong>
+                          <span data-turn-ticket-model-state={model.ticketState}>
                             {model.routingMode
                               ? t(`accounts.turn_ticket_routing_${model.routingMode}`, {
                                   defaultValue: model.routingMode,
                                 })
-                              : '—'}
-                          </dd>
+                              : t(`accounts.turn_ticket_model_state_${model.ticketState}`, {
+                                  defaultValue: model.ticketState,
+                                })}
+                          </span>
                         </div>
-                        <div>
-                          <dt>{t('accounts.detail_turn_ticket_routing_cookies')}</dt>
-                          <dd>
-                            {model.routingCookieNames.length > 0
-                              ? model.routingCookieNames.join(', ')
-                              : '—'}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt>{t('accounts.detail_turn_ticket_routing_validated_at')}</dt>
-                          <dd>
-                            {model.routingValidatedAtMs === null
-                              ? '—'
-                              : formatTimestampTitle(model.routingValidatedAtMs, i18n.language)}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt>{t('accounts.detail_turn_ticket_routing_expires_at')}</dt>
-                          <dd>
-                            {model.routingExpiresAtMs === null
-                              ? '—'
-                              : formatTimestampTitle(model.routingExpiresAtMs, i18n.language)}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt>{t('accounts.detail_turn_ticket_length')}</dt>
-                          <dd>{model.ticketLength ?? '—'}</dd>
-                        </div>
-                        <div>
-                          <dt>{t('accounts.detail_turn_ticket_expires_at')}</dt>
-                          <dd>
-                            {model.expiresAtMs === null
-                              ? '—'
-                              : formatTimestampTitle(model.expiresAtMs, i18n.language)}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt>{t('accounts.detail_turn_ticket_last_observed_at')}</dt>
-                          <dd>
-                            {model.lastObservedAtMs === null
-                              ? '—'
-                              : formatTimestampTitle(model.lastObservedAtMs, i18n.language)}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt>{t('accounts.detail_turn_ticket_http_status')}</dt>
-                          <dd>{model.lastHttpStatus ?? '—'}</dd>
-                        </div>
-                        <div>
-                          <dt>{t('accounts.detail_turn_ticket_observed_length')}</dt>
-                          <dd>{model.lastObservedLength ?? '—'}</dd>
-                        </div>
-                        <div>
-                          <dt>{t('accounts.detail_turn_ticket_result')}</dt>
-                          <dd>{model.lastResult || '—'}</dd>
-                        </div>
-                        <div>
-                          <dt>{t('accounts.detail_turn_ticket_probe_phase')}</dt>
-                          <dd>
-                            {model.probeInFlight
-                              ? t('accounts.detail_turn_ticket_probe_in_flight', {
-                                  phase: model.probePhase || '—',
-                                })
-                              : model.lastProbePhase || '—'}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt>{t('accounts.detail_turn_ticket_probe_attempts')}</dt>
-                          <dd>{model.probeAttempts ?? '—'}</dd>
-                        </div>
-                        <div>
-                          <dt>{t('accounts.detail_turn_ticket_probe_completed')}</dt>
-                          <dd>
-                            {t(
-                              model.lastProbeComplete
-                                ? 'accounts.detail_turn_ticket_policy_enabled'
-                                : 'accounts.detail_turn_ticket_policy_disabled'
-                            )}
-                            {' · '}
-                            {t(
-                              model.lastProbeModelMatch
-                                ? 'accounts.detail_turn_ticket_probe_model_match'
-                                : 'accounts.detail_turn_ticket_probe_model_mismatch'
-                            )}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt>{t('accounts.detail_turn_ticket_last_probe_at')}</dt>
-                          <dd>
-                            {model.lastProbeAtMs === null
-                              ? '—'
-                              : formatTimestampTitle(model.lastProbeAtMs, i18n.language)}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt>{t('accounts.detail_turn_ticket_last_probe_result')}</dt>
-                          <dd>{model.lastProbeResult || '—'}</dd>
-                        </div>
-                        <div>
-                          <dt>{t('accounts.detail_turn_ticket_next_probe_at')}</dt>
-                          <dd>
-                            {model.nextProbeAtMs === null
-                              ? '—'
-                              : formatTimestampTitle(model.nextProbeAtMs, i18n.language)}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt>{t('accounts.detail_turn_ticket_backoff_until')}</dt>
-                          <dd>
-                            {model.probeBackoffUntilMs === null
-                              ? '—'
-                              : formatTimestampTitle(model.probeBackoffUntilMs, i18n.language)}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt>{t('accounts.detail_turn_ticket_harvest_backoff_until')}</dt>
-                          <dd>
-                            {model.harvestBackoffUntilMs === null
-                              ? '—'
-                              : formatTimestampTitle(model.harvestBackoffUntilMs, i18n.language)}
-                          </dd>
-                        </div>
-                      </dl>
-                    </article>
-                  ))}
-                </div>
-              ) : (
-                <p className={styles.overviewCardDescription}>
-                  {t('accounts.detail_turn_ticket_no_models')}
-                </p>
-              )}
-            </>
+                        <dl className={styles.overviewTurnTicketModelFields}>
+                          <div>
+                            <dt>{t('accounts.detail_turn_ticket_model_state')}</dt>
+                            <dd>
+                              {t(`accounts.turn_ticket_model_state_${model.ticketState}`, {
+                                defaultValue: model.ticketState,
+                              })}
+                            </dd>
+                          </div>
+                          <div>
+                            <dt>{t('accounts.detail_turn_ticket_routing_mode')}</dt>
+                            <dd>
+                              {model.routingMode
+                                ? t(`accounts.turn_ticket_routing_${model.routingMode}`, {
+                                    defaultValue: model.routingMode,
+                                  })
+                                : '—'}
+                            </dd>
+                          </div>
+                          <div>
+                            <dt>{t('accounts.detail_turn_ticket_routing_cookies')}</dt>
+                            <dd>
+                              {model.routingCookieNames.length > 0
+                                ? model.routingCookieNames.join(', ')
+                                : '—'}
+                            </dd>
+                          </div>
+                          <div>
+                            <dt>{t('accounts.detail_turn_ticket_routing_validated_at')}</dt>
+                            <dd>
+                              {model.routingValidatedAtMs === null
+                                ? '—'
+                                : formatTimestampTitle(model.routingValidatedAtMs, i18n.language)}
+                            </dd>
+                          </div>
+                          <div>
+                            <dt>{t('accounts.detail_turn_ticket_routing_expires_at')}</dt>
+                            <dd>
+                              {model.routingExpiresAtMs === null
+                                ? '—'
+                                : formatTimestampTitle(model.routingExpiresAtMs, i18n.language)}
+                            </dd>
+                          </div>
+                          <div>
+                            <dt>{t('accounts.detail_turn_ticket_length')}</dt>
+                            <dd>{model.ticketLength ?? '—'}</dd>
+                          </div>
+                          <div>
+                            <dt>{t('accounts.detail_turn_ticket_expires_at')}</dt>
+                            <dd>
+                              {model.expiresAtMs === null
+                                ? '—'
+                                : formatTimestampTitle(model.expiresAtMs, i18n.language)}
+                            </dd>
+                          </div>
+                          <div>
+                            <dt>{t('accounts.detail_turn_ticket_last_observed_at')}</dt>
+                            <dd>
+                              {model.lastObservedAtMs === null
+                                ? '—'
+                                : formatTimestampTitle(model.lastObservedAtMs, i18n.language)}
+                            </dd>
+                          </div>
+                          <div>
+                            <dt>{t('accounts.detail_turn_ticket_http_status')}</dt>
+                            <dd>{model.lastHttpStatus ?? '—'}</dd>
+                          </div>
+                          <div>
+                            <dt>{t('accounts.detail_turn_ticket_observed_length')}</dt>
+                            <dd>{model.lastObservedLength ?? '—'}</dd>
+                          </div>
+                          <div>
+                            <dt>{t('accounts.detail_turn_ticket_result')}</dt>
+                            <dd>{model.lastResult || '—'}</dd>
+                          </div>
+                          <div>
+                            <dt>{t('accounts.detail_turn_ticket_probe_phase')}</dt>
+                            <dd>
+                              {model.probeInFlight
+                                ? t('accounts.detail_turn_ticket_probe_in_flight', {
+                                    phase: model.probePhase || '—',
+                                  })
+                                : model.lastProbePhase || '—'}
+                            </dd>
+                          </div>
+                          <div>
+                            <dt>{t('accounts.detail_turn_ticket_probe_attempts')}</dt>
+                            <dd>{model.probeAttempts ?? '—'}</dd>
+                          </div>
+                          <div>
+                            <dt>{t('accounts.detail_turn_ticket_probe_completed')}</dt>
+                            <dd>
+                              {t(
+                                model.lastProbeComplete
+                                  ? 'accounts.detail_turn_ticket_policy_enabled'
+                                  : 'accounts.detail_turn_ticket_policy_disabled'
+                              )}
+                              {' · '}
+                              {t(
+                                model.lastProbeModelMatch
+                                  ? 'accounts.detail_turn_ticket_probe_model_match'
+                                  : 'accounts.detail_turn_ticket_probe_model_mismatch'
+                              )}
+                            </dd>
+                          </div>
+                          <div>
+                            <dt>{t('accounts.detail_turn_ticket_last_probe_at')}</dt>
+                            <dd>
+                              {model.lastProbeAtMs === null
+                                ? '—'
+                                : formatTimestampTitle(model.lastProbeAtMs, i18n.language)}
+                            </dd>
+                          </div>
+                          <div>
+                            <dt>{t('accounts.detail_turn_ticket_last_probe_result')}</dt>
+                            <dd>{model.lastProbeResult || '—'}</dd>
+                          </div>
+                          <div>
+                            <dt>{t('accounts.detail_turn_ticket_next_probe_at')}</dt>
+                            <dd>
+                              {model.nextProbeAtMs === null
+                                ? '—'
+                                : formatTimestampTitle(model.nextProbeAtMs, i18n.language)}
+                            </dd>
+                          </div>
+                          <div>
+                            <dt>{t('accounts.detail_turn_ticket_backoff_until')}</dt>
+                            <dd>
+                              {model.probeBackoffUntilMs === null
+                                ? '—'
+                                : formatTimestampTitle(model.probeBackoffUntilMs, i18n.language)}
+                            </dd>
+                          </div>
+                          <div>
+                            <dt>{t('accounts.detail_turn_ticket_harvest_backoff_until')}</dt>
+                            <dd>
+                              {model.harvestBackoffUntilMs === null
+                                ? '—'
+                                : formatTimestampTitle(model.harvestBackoffUntilMs, i18n.language)}
+                            </dd>
+                          </div>
+                        </dl>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <p className={styles.overviewCardDescription}>
+                    {t('accounts.detail_turn_ticket_no_models')}
+                  </p>
+                )}
+              </>
+            )
           ) : (
             <p className={styles.overviewCardDescription}>
               {t('accounts.detail_turn_ticket_not_applicable')}

@@ -1,3 +1,5 @@
+import type { GatewayMintConfigKey, GatewayMintConfigValues } from './gatewayMintConfig';
+
 export type PayloadParamValueType = 'string' | 'number' | 'boolean' | 'json';
 export type DisableImageGenerationMode = 'false' | 'true' | 'chat' | 'passthrough';
 export type RemoteManagementSecretKeyAction = 'unchanged' | 'replace' | 'clear';
@@ -9,6 +11,7 @@ export type PayloadParamValidationErrorCode =
   | 'payload_invalid_json';
 
 export type VisualConfigFieldPath =
+  | `codexTurnTicket.${GatewayMintConfigKey}`
   | 'port'
   | 'errorLogsMaxFiles'
   | 'logsMaxTotalSizeMb'
@@ -23,6 +26,9 @@ export type VisualConfigFieldPath =
   | 'streaming.nonstreamKeepaliveInterval';
 
 export type VisualConfigValidationErrorCode =
+  | 'mint_range'
+  | 'mint_gateway'
+  | 'mint_transports'
   | 'port_range'
   | 'non_negative_integer'
   | 'integer'
@@ -89,6 +95,7 @@ export type PluginStoreAuthRule = {
 };
 
 export type VisualConfigValues = {
+  codexTurnTicket?: GatewayMintConfigValues;
   host: string;
   port: string;
   tlsEnable: boolean;

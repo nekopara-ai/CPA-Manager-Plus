@@ -225,28 +225,29 @@ const renderPanel = (row: PanelRow, overrides: PanelOverrides = {}) =>
   );
 
 describe('RealtimeEventsPanel', () => {
-  it.each([292, 312, 332, 356, 428, 780])('shows only the observed response ticket length %i', (length) => {
-    const markup = renderPanel(
-      baseRow({
-        provider: 'codex',
-        responseMetadata: {
-          codex_turn_state: {
-            request_length: 292,
-            request_source: 'cache',
-            response_length: length,
+  it.each([292, 312, 332, 356, 428, 780])(
+    'shows only the observed response ticket length %i',
+    (length) => {
+      const markup = renderPanel(
+        baseRow({
+          provider: 'codex',
+          responseMetadata: {
+            codex_turn_state: {
+              request_length: 292,
+              request_source: 'cache',
+              response_length: length,
+            },
           },
-        },
-      })
-    );
-    expect(markup).toContain(`data-codex-turn-state-response-length="${length}"`);
-    expect(markup).toContain(`Response ticket length: ${length} bytes`);
-    expect(markup).not.toContain('data-codex-turn-state-request');
-    expect(markup).not.toContain('Injected');
-    expect(markup.includes(styles.realtimeTurnStateHealthy)).toBe(
-      length === 292 || length === 332 || length === 780
-    );
-    expect(markup.includes(styles.realtimeTurnStateDegraded)).toBe(length === 312 || length === 356);
-  });
+        })
+      );
+      expect(markup).toContain(`data-codex-turn-state-response-length="${length}"`);
+      expect(markup).toContain(`Response ticket length: ${length} bytes`);
+      expect(markup).not.toContain('data-codex-turn-state-request');
+      expect(markup).not.toContain('Injected');
+      expect(markup.includes(styles.realtimeTurnStateHealthy)).toBe(false);
+      expect(markup.includes(styles.realtimeTurnStateDegraded)).toBe(false);
+    }
+  );
 
   it.each(['cache', 'passthrough', 'none'] as const)(
     'does not substitute a %s request observation for a missing response',

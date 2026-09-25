@@ -1,3 +1,5 @@
+import { parseMintConfig, validateMintConfig, applyMintConfig } from './gatewayMintConfig';
+import { MINT_KEYS, EMPTY_MINT_CONFIG } from '@/types/gatewayMintConfig';
 import { useCallback, useMemo, useReducer } from 'react';
 import { isMap, parse as parseYaml, parseDocument } from 'yaml';
 import type {
@@ -336,6 +338,7 @@ export function getVisualConfigValidationErrors(
   values: VisualConfigValues
 ): VisualConfigValidationErrors {
   return {
+    ...validateMintConfig(values.codexTurnTicket),
     port: getPortError(values.port),
     errorLogsMaxFiles: getNonNegativeIntegerError(values.errorLogsMaxFiles),
     logsMaxTotalSizeMb: getNonNegativeIntegerError(values.logsMaxTotalSizeMb),
@@ -432,6 +435,15 @@ function getNextDirtyFields(
       nextDirtyFields.add(key);
     }
   };
+  if (patch.codexTurnTicket) {
+    for (const key of MINT_KEYS) {
+      updateDirty(
+        `codexTurnTicket.${key}`,
+        (nextValues.codexTurnTicket ?? EMPTY_MINT_CONFIG)[key] ===
+          (baselineValues.codexTurnTicket ?? EMPTY_MINT_CONFIG)[key]
+      );
+    }
+  }
   const updateScalarDirty = (key: keyof VisualConfigValues) => {
     if (Object.prototype.hasOwnProperty.call(patch, key)) {
       updateDirty(key, nextValues[key] === baselineValues[key]);
@@ -779,6 +791,7 @@ export function useVisualConfig() {
       const devin = asRecord(parsed.devin);
 
       const newValues: VisualConfigValues = {
+        codexTurnTicket: parseMintConfig(codex),
         host: typeof parsed.host === 'string' ? parsed.host : '',
         port: String(parsed.port ?? ''),
 
@@ -932,6 +945,8 @@ export function useVisualConfig() {
         }
         const values = visualValues;
         const isDirty = (key: string) => dirtyFields.has(key);
+
+        applyMintConfig(doc, values.codexTurnTicket ?? EMPTY_MINT_CONFIG, isDirty);
 
         if (isDirty('host')) setStringInDoc(doc, ['host'], values.host);
         if (isDirty('port')) setIntFromStringInDoc(doc, ['port'], values.port);
@@ -1097,14 +1112,16 @@ export function useVisualConfig() {
         if (isDirty('passthroughHeaders')) {
           setBooleanInDoc(doc, ['passthrough-headers'], values.passthroughHeaders);
         }
-        if (isDirty('requestRetry')) setIntFromStringInDoc(doc, ['request-retry'], values.requestRetry);
+        if (isDirty('requestRetry'))
+          setIntFromStringInDoc(doc, ['request-retry'], values.requestRetry);
         if (isDirty('maxRetryCredentials')) {
           setIntFromStringInDoc(doc, ['max-retry-credentials'], values.maxRetryCredentials);
         }
         if (isDirty('maxRetryInterval')) {
           setIntFromStringInDoc(doc, ['max-retry-interval'], values.maxRetryInterval);
         }
-        if (isDirty('disableCooling')) setBooleanInDoc(doc, ['disable-cooling'], values.disableCooling);
+        if (isDirty('disableCooling'))
+          setBooleanInDoc(doc, ['disable-cooling'], values.disableCooling);
         if (isDirty('saveCooldownStatus')) {
           setBooleanInDoc(doc, ['save-cooldown-status'], values.saveCooldownStatus);
         }
@@ -1247,16 +1264,17 @@ export function useVisualConfig() {
         const writeQuotaSwitchProject = isDirty('quotaSwitchProject');
         const writeQuotaSwitchPreviewModel = isDirty('quotaSwitchPreviewModel');
         const writeQuotaAntigravityCredits = isDirty('quotaAntigravityCredits');
-        if (writeQuotaSwitchProject || writeQuotaSwitchPreviewModel || writeQuotaAntigravityCredits) {
+        if (
+          writeQuotaSwitchProject ||
+          writeQuotaSwitchPreviewModel ||
+          writeQuotaAntigravityCredits
+        ) {
           ensureMapInDoc(doc, ['quota-exceeded']);
           if (writeQuotaSwitchProject) {
             doc.setIn(['quota-exceeded', 'switch-project'], values.quotaSwitchProject);
           }
           if (writeQuotaSwitchPreviewModel) {
-            doc.setIn(
-              ['quota-exceeded', 'switch-preview-model'],
-              values.quotaSwitchPreviewModel
-            );
+            doc.setIn(['quota-exceeded', 'switch-preview-model'], values.quotaSwitchPreviewModel);
           }
           if (writeQuotaAntigravityCredits) {
             doc.setIn(['quota-exceeded', 'antigravity-credits'], values.quotaAntigravityCredits);
