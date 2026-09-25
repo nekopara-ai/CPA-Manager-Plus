@@ -305,18 +305,8 @@ const getRealtimeDurationToneClass = (value: number | null | undefined) => {
   return styles.goodText;
 };
 
-// Ticket shapes are subscription-specific observations, not model-quality proof.
-// CPA `turn-ticket` policy lengths: healthy 780 for personal and Team, degraded 312.
-// The legacy pairs are kept so history recorded before the policy change still renders.
-const TURN_STATE_HEALTHY_LENGTHS = new Set([292, 332, 780]);
-const TURN_STATE_DEGRADED_LENGTHS = new Set([312, 356]);
-
-const turnStateLengthColorClass = (value: number | null) =>
-  value !== null && TURN_STATE_HEALTHY_LENGTHS.has(value)
-    ? styles.realtimeTurnStateHealthy
-    : value !== null && TURN_STATE_DEGRADED_LENGTHS.has(value)
-      ? styles.realtimeTurnStateDegraded
-      : '';
+// Response lengths are observations only; gateway/model/pair acceptance is not present here.
+// Do not color a number as healthy/degraded or treat it as injection evidence.
 
 const formatRealtimeDateParts = (timestampMs: number, locale: string) => {
   const date = new Date(timestampMs);
@@ -1292,10 +1282,7 @@ export function RealtimeEventsPanel({
                                   {t('monitoring.codex_turn_state_response')}
                                 </span>
                                 <span
-                                  className={[
-                                    styles.realtimeTurnStateNumber,
-                                    turnStateLengthColorClass(turnState.responseLength),
-                                  ]
+                                  className={[styles.realtimeTurnStateNumber]
                                     .filter(Boolean)
                                     .join(' ')}
                                 >

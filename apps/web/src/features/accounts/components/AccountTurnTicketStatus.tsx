@@ -1,3 +1,4 @@
+import { GatewayMintStatus } from './GatewayMintStatus';
 import { useTranslation } from 'react-i18next';
 import { useInterval } from '@/hooks/useInterval';
 import { useState } from 'react';
@@ -87,6 +88,10 @@ export function AccountTurnTicketStatus({
         —
       </span>
     );
+  }
+
+  if (summary.gatewayMint) {
+    return <GatewayMintStatus summary={summary} onOpen={interactive ? onOpen : undefined} />;
   }
 
   const targetLength = formatAccountTurnTicketLength(summary.targetLength);

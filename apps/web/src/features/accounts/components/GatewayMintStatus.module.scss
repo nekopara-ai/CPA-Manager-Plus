@@ -1,0 +1,86 @@
+.badge {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  color: var(--text-secondary);
+  background: transparent;
+  text-align: left;
+  font: inherit;
+}
+button.badge {
+  cursor: pointer;
+}
+.badge:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+.badge small,
+.muted {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+.ready,
+.readyText {
+  color: var(--success-color, #16855d);
+}
+.partial {
+  color: var(--warning-color, #b5791d);
+}
+.detail {
+  min-width: 0;
+}
+.detail p {
+  font-size: 13px;
+  line-height: 1.6;
+}
+.model {
+  margin-top: 16px;
+}
+.model h4 {
+  overflow-wrap: anywhere;
+  margin: 0 0 10px;
+}
+.transports {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: 12px;
+}
+.transport {
+  min-width: 0;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 14px;
+}
+.transport header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+}
+.transport dl {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  margin: 14px 0 0;
+}
+.transport dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.transport dt {
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+.transport dd {
+  margin: 0;
+  text-align: right;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}

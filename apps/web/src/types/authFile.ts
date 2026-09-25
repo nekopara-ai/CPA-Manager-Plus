@@ -36,7 +36,25 @@ export type CodexTurnTicketState =
 
 export type CodexTurnTicketRoutingMode = 'unknown' | 'direct' | 'inject' | 'blocked';
 
+/** Redacted as-of gateway acquisition snapshot; never raw credentials or cookies. */
+export interface CodexMintSnapshot {
+  ready?: boolean;
+  gateway?: string;
+  model?: string;
+  ticket_length?: number;
+  ticket_expires_at?: string | number;
+  pair_expires_at?: string | number;
+  observed_at?: string | number;
+  next_attempt_at?: string | number;
+  attempts?: number;
+  status?: number;
+  reason?: string;
+  in_flight?: boolean;
+}
+
 export interface CodexTurnTicketModelSnapshot {
+  mint_states?: Partial<Record<'sse' | 'websocket', CodexMintSnapshot>>;
+  mintStates?: Partial<Record<'sse' | 'websocket', CodexMintSnapshot>>;
   model?: string;
   ticket_state?: string;
   ticketState?: string;
