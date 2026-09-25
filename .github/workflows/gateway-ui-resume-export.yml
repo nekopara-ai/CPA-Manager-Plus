@@ -1,0 +1,42 @@
+name: Gateway UI resume export
+on:
+  push:
+    branches: [codex/gateway-ui-verify-20260925]
+    paths: [.github/workflows/gateway-ui-resume-export.yml]
+permissions:
+  contents: read
+jobs:
+  export:
+    if: github.repository == 'nekopara-ai/CPA-Manager-Plus'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Export staged review and history
+        run: |
+          set -euo pipefail
+          tar -czf "$RUNNER_TEMP/gateway-ui-staged.tar.gz" .dev
+          git bundle create "$RUNNER_TEMP/gateway-ui-resume.bundle" HEAD refs/remotes/origin/main refs/remotes/origin/codex/cpamp-effective-tier
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gateway-ui-resume-source
+          path: |
+            ${{ runner.temp }}/gateway-ui-staged.tar.gz
+            ${{ runner.temp }}/gateway-ui-resume.bundle
+          retention-days: 2
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - name: Export dependencies for offline tests
+        run: |
+          find . -type d -name node_modules -prune -print0 | tar --null -T - -czf "$RUNNER_TEMP/gateway-ui-node-modules.tar.gz"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gateway-ui-resume-dependencies
+          path: ${{ runner.temp }}/gateway-ui-node-modules.tar.gz
+          retention-days: 2
