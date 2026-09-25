@@ -1,0 +1,40 @@
+name: Gateway UI review workspace
+on:
+  push:
+    branches: [codex/cpamp-gateway-mint-ui-20260925]
+    paths: [.github/workflows/gateway-ui-review.yml]
+permissions:
+  contents: read
+jobs:
+  workspace:
+    if: github.repository == 'nekopara-ai/CPA-Manager-Plus'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Export exact review source
+        run: |
+          git rev-parse HEAD > "$RUNNER_TEMP/manager-source-sha.txt"
+          git archive --format=tar.gz HEAD > "$RUNNER_TEMP/manager-source.tar.gz"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gateway-ui-source
+          path: |
+            ${{ runner.temp }}/manager-source.tar.gz
+            ${{ runner.temp }}/manager-source-sha.txt
+          retention-days: 2
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - name: Export installed review dependencies
+        run: |
+          find . -type d -name node_modules -prune -print0 | tar --null -T - -czf "$RUNNER_TEMP/manager-node-modules.tar.gz"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gateway-ui-dependencies
+          path: ${{ runner.temp }}/manager-node-modules.tar.gz
+          retention-days: 2
