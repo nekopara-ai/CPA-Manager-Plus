@@ -14,7 +14,13 @@ export interface FingerprintPolicy {
   'history-limit'?: number;
   'retain-answers'?: boolean;
 }
+export interface FingerprintWait {
+  reason: string;
+  scope: string;
+  retry_at: string;
+}
 export interface FingerprintResult {
+  deferred?: FingerprintWait;
   model: string;
   expected_model: string;
   status: string;
@@ -49,6 +55,7 @@ export interface FingerprintSnapshot {
     string,
     {
       blocked: boolean;
+      wait?: FingerprintWait;
       cooldown_until?: string;
       next_run_at?: string;
       last_run_at?: string;

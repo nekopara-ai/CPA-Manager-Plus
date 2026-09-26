@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import {
   fingerprintModelCounts,
+  resolveFingerprintModels,
   type AccountFingerprintSummary,
 } from '../model/accountFingerprint';
 import styles from '../AccountsPage.module.scss';
@@ -42,6 +43,9 @@ export function AccountFingerprintStatus({
       </span>
       {summary?.snapshot?.running && !summary.snapshot.manually_disabled && state === 'blocked' && (
         <small>{t('accounts.fingerprint_rechecking')}</small>
+      )}
+      {state === 'blocked' && resolveFingerprintModels(summary?.snapshot).some((m) => m.wait) && (
+        <small>{t('accounts.fingerprint_filter_waiting')}</small>
       )}
     </>
   );

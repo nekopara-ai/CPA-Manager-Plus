@@ -12,6 +12,45 @@ const summary = (s: Partial<FingerprintSnapshot>) =>
     fingerprint_status: { enabled: true, manually_disabled: false, ...s },
   });
 describe('fingerprint status', () => {
+  it('separates quota deferral from the last verdict and preserves manual disable / mismatch priority', () => {
+    const s: FingerprintSnapshot = {
+      enabled: true,
+      manually_disabled: false,
+      effective: { models: ['sol'] },
+      model_states: {
+        sol: {
+          blocked: false,
+          wait: { reason: 'quota', scope: 'credential', retry_at: '2026-09-27T05:00:00Z' },
+          result: {
+            model: 'sol',
+            expected_model: 'sol',
+            status: 'match',
+            used_outputs: 3,
+            probability: 0.99,
+          },
+        },
+      },
+      current_results: [
+        { model: 'sol', expected_model: 'sol', status: 'deferred', used_outputs: 0 },
+      ],
+    };
+    expect(summary(s).state).toBe('waiting');
+    expect(accountFingerprintMatchesFilter(summary(s), 'waiting')).toBe(true);
+    expect(resolveFingerprintModels(s)[0]).toMatchObject({
+      gate: 'allowed',
+      wait: { reason: 'quota' },
+      result: { status: 'match', probability: 0.99 },
+    });
+    s.model_states!.sol.blocked = true;
+    expect(summary(s).state).toBe('blocked');
+    s.manually_disabled = true;
+    expect(summary(s).state).toBe('disabled');
+    expect(resolveFingerprintModels(s)[0].wait).toBeUndefined();
+    s.manually_disabled = false;
+    s.enabled = false;
+    expect(summary(s).state).toBe('unknown');
+    expect(resolveFingerprintModels(s)[0].wait).toBeUndefined();
+  });
   it('distinguishes disabled, pending, errors and successful cycles', () => {
     expect(summary({ enabled: false }).state).toBe('unknown');
     expect(summary({}).state).toBe('missing');

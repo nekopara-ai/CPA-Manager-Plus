@@ -1,5 +1,20 @@
 # Credential timezone and fingerprint policies
 
+## Quota-aware diagnostic scheduling
+
+CPA exposes an independent `model_states[model].wait` with a sanitized reason,
+scope and earliest retry time. CPAMP shows quota/auth unavailability as a deferred
+test, not a fingerprint mismatch or a zero score. The last real verdict and any
+existing model exclusion remain visible. The waiting filter does not turn a
+quota cooldown into fingerprint blocking; manual disablement and actual model
+exclusions retain precedence. Historical deferred runs are explicitly labelled.
+If the backend has not been upgraded, no wait is inferred from old generic errors.
+
+Quota recovery is an earliest retry time, not guaranteed immediate execution:
+the model schedule, fingerprint cooldown, worker availability and request budget
+still apply. Fingerprint allowed means only that this guard does not block the
+model; the normal business quota/auth checks remain independent.
+
 This UI requires a matching CPA build with `credential-policies` / `fingerprint`
 support. The retired ticket/gateway-mint feature and its management UI are removed.
 

@@ -7868,6 +7868,7 @@ export function AccountsPage() {
             { value: 'partial', label: t('accounts.fingerprint_filter_partial') },
             { value: 'missing', label: t('accounts.fingerprint_filter_missing') },
             { value: 'unclassified', label: t('accounts.fingerprint_filter_unclassified') },
+            { value: 'waiting', label: t('accounts.fingerprint_filter_waiting') },
             { value: 'blocked', label: t('accounts.fingerprint_filter_blocked') },
             { value: 'unknown', label: t('accounts.fingerprint_filter_unknown') },
             { value: 'stale', label: t('accounts.fingerprint_filter_stale') },

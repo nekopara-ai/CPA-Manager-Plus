@@ -1,11 +1,12 @@
 import type { AuthFileItem } from '@/types';
-import type { FingerprintResult, FingerprintSnapshot } from '@/types/fingerprint';
+import type { FingerprintResult, FingerprintSnapshot, FingerprintWait } from '@/types/fingerprint';
 export const ACCOUNT_FINGERPRINT_FILTERS = [
   'all',
   'ready',
   'partial',
   'missing',
   'unclassified',
+  'waiting',
   'blocked',
   'unknown',
   'stale',
@@ -27,6 +28,7 @@ export interface FingerprintModelView {
   running: boolean;
   cooldownUntil?: string;
   nextRunAt?: string;
+  wait?: FingerprintWait;
 }
 
 /** Eligibility and classifier verdict are separate: an untested model can be allowed. */
@@ -44,7 +46,7 @@ export function resolveFingerprintModels(s?: FingerprintSnapshot): FingerprintMo
       .toLowerCase();
   return [...new Set(names)].map((model) => {
     const state = s.model_states?.[model];
-    const current = s.current_results?.find((r) => r.model === model);
+    const current = s.current_results?.find((r) => r.model === model && r.status !== 'deferred');
     const result = current ?? state?.result ?? s.results?.find((r) => r.model === model);
     // Older backends expose only an account-wide exclusion; do not invent a partial recovery.
     const blocked =
@@ -72,6 +74,7 @@ export function resolveFingerprintModels(s?: FingerprintSnapshot): FingerprintMo
       running: !!s.enabled && !s.manually_disabled && !!s.running && s.progress?.model === model,
       cooldownUntil: gate === 'blocked' ? (state?.cooldown_until ?? s.cooldown_until) : undefined,
       nextRunAt: state?.next_run_at ?? s.next_run_at,
+      wait: s.enabled && !s.manually_disabled && s.supported !== false ? state?.wait : undefined,
     };
   });
 }
@@ -94,6 +97,7 @@ export function resolveAccountFingerprint(
   if (snapshot.blocked || snapshot.configuration_error || fingerprintModelCounts(snapshot).blocked)
     return { state: 'blocked', snapshot };
   if (snapshot.running) return { state: 'unclassified', snapshot };
+  if (resolveFingerprintModels(snapshot).some((m) => m.wait)) return { state: 'waiting', snapshot };
   if (snapshot.results_stale) return { state: 'stale', snapshot };
   const results = snapshot.results ?? [];
   if (!results.length) return { state: 'missing', snapshot };

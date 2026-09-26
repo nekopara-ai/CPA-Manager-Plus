@@ -3,6 +3,47 @@ import { describe, expect, it, vi } from 'vitest';
 import { FingerprintDetails } from './FingerprintDetails';
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 describe('fingerprint details', () => {
+  it('renders quota as waiting, retaining the previous real verdict rather than an error or zero score', async () => {
+    let renderer: ReturnType<typeof create>;
+    await act(async () => {
+      renderer = create(
+        <FingerprintDetails
+          summary={{
+            state: 'waiting',
+            snapshot: {
+              enabled: true,
+              manually_disabled: false,
+              model_states: {
+                sol: {
+                  blocked: false,
+                  wait: { reason: 'quota', scope: 'credential', retry_at: '2026-09-27T05:00:00Z' },
+                  result: {
+                    model: 'sol',
+                    expected_model: 'sol',
+                    status: 'match',
+                    used_outputs: 3,
+                    probability: 0.99,
+                  },
+                },
+              },
+              current_results: [
+                { model: 'sol', expected_model: 'sol', status: 'deferred', used_outputs: 0 },
+              ],
+            },
+          }}
+        />
+      );
+    });
+    const text = JSON.stringify(renderer!.toJSON());
+    expect(text).toContain('fingerprint_wait_quota');
+    expect(text).toContain('fingerprint_wait_preserved');
+    expect(text).toContain('fingerprint_wait_retry');
+    expect(text).toContain('fingerprint_result_match');
+    expect(text).toContain('99.00%');
+    expect(text).not.toContain('fingerprint_result_error');
+    expect(text).not.toContain('0.00%');
+    await act(async () => renderer!.unmount());
+  });
   it('shows independent model blocks without claiming the entire credential is disabled', async () => {
     let renderer: ReturnType<typeof create>;
     await act(async () => {

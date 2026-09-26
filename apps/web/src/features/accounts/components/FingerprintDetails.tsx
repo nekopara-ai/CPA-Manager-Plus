@@ -142,6 +142,21 @@ export function FingerprintDetails({ summary }: { summary?: AccountFingerprintSu
                 {gateLabel(m.gate)}
               </span>
             </header>
+            {m.wait && (
+              <div className={styles.notice} role="status" data-fingerprint-wait>
+                <strong>
+                  {t(
+                    m.wait.reason === 'quota'
+                      ? 'accounts.fingerprint_wait_quota'
+                      : 'accounts.fingerprint_wait_unavailable'
+                  )}
+                </strong>
+                <div>{t('accounts.fingerprint_wait_preserved')}</div>
+                <div>
+                  {t('accounts.fingerprint_wait_retry')}: {time(m.wait.retry_at)}
+                </div>
+              </div>
+            )}
             <div className={styles.resultHeading}>
               <div>
                 <span className={styles.label}>{t('accounts.fingerprint_score')}</span>
@@ -252,6 +267,17 @@ export function FingerprintDetails({ summary }: { summary?: AccountFingerprintSu
                         {t('accounts.fingerprint_answers')} {r.used_outputs}/3
                       </small>
                       {r.error && <code className={styles.errorCode}>{r.error}</code>}
+                      {r.deferred && (
+                        <small>
+                          {t(
+                            r.deferred.reason === 'quota'
+                              ? 'accounts.fingerprint_wait_quota'
+                              : 'accounts.fingerprint_wait_unavailable'
+                          )}
+                          {' · '}
+                          {t('accounts.fingerprint_wait_retry')}: {time(r.deferred.retry_at)}
+                        </small>
+                      )}
                     </div>
                   ))}
                 </div>
