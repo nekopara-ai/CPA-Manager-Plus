@@ -269,6 +269,7 @@ export function AccountConfigurationTab({
             errors={errors}
             disabled={disabled}
             onChange={editor.updateField}
+            effective={row.fingerprint?.snapshot?.effective}
           />
 
           {capabilities.websockets ? (

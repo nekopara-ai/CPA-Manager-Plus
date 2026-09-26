@@ -1268,6 +1268,71 @@ describe('authFilesApi patchFieldsForAuthIndexes', () => {
     return file as File;
   };
 
+  it('writes complete credential policies only to the verified array member and preserves explicit off values', async () => {
+    const first = {
+      type: 'codex',
+      auth_index: 'auth-1',
+      timezone_override: 'Europe/London',
+      timezone_override_country: 'GB',
+      fingerprint: { enabled: true },
+      note: 'keep-first',
+    };
+    const second = {
+      type: 'codex',
+      auth_index: 'auth-2',
+      timezone_override: 'America/New_York',
+      fingerprint: { enabled: false },
+      note: 'keep-second',
+    };
+    const rawText = JSON.stringify([first, second]);
+    mocks.getRaw.mockResolvedValue({ data: new Blob([rawText]) });
+    mocks.postForm.mockResolvedValue({
+      status: 'ok',
+      uploaded: 1,
+      files: ['policies.json'],
+      failed: [],
+    });
+    const target = {
+      name: 'policies.json',
+      runtimeId: 'runtime-auth-1',
+      authIndex: 'auth-1',
+      provider: 'codex',
+    };
+    const sibling = { ...target, runtimeId: 'runtime-auth-2', authIndex: 'auth-2' };
+    const fingerprint = {
+      enabled: false,
+      models: ['gpt-6-sol', 'gpt-6-astra'],
+      'question-retries': 0,
+      'cooldown-seconds': 120,
+      'retain-answers': false,
+      'expected-models': {},
+    };
+    await authFilesApi.patchFieldsForAuthIndexes('policies.json', [target], [target, sibling], {
+      timezone_override: 'Asia/Tokyo',
+      timezone_override_country: null,
+      timezone_override_region: 'Tokyo',
+      timezone_override_city: '',
+      fingerprint,
+    });
+    const uploaded = JSON.parse(await getUploadedFile().text());
+    expect(uploaded).toEqual([
+      {
+        type: 'codex',
+        auth_index: 'auth-1',
+        note: 'keep-first',
+        timezone_override: 'Asia/Tokyo',
+        timezone_override_region: 'Tokyo',
+        timezone_override_city: '',
+        fingerprint,
+      },
+      second,
+    ]);
+    expect(uploaded[0]).not.toHaveProperty('timezone_override_country');
+    expect(mocks.postForm.mock.calls[0][2].headers['X-CPAMP-Auth-File-Write-Content-SHA256']).toBe(
+      sha256RawTextHex(rawText)
+    );
+  });
+
   it('updates only matching auth records in an auth array', async () => {
     const rawText = JSON.stringify([
       { type: 'codex', authIndex: 0, priority: 1, weight: 4, websocket: true },

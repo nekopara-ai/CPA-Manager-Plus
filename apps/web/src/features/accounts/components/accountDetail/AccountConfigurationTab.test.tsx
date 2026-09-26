@@ -263,7 +263,11 @@ describe('AccountConfigurationTab', () => {
       2
     );
     const renderer = renderTab(makeRow('xai'), editor, onCopyText);
-    const details = renderer.root.findByType('details');
+    const details = renderer.root
+      .findAllByType('details')
+      .find((node) =>
+        readText(node.findByType('summary')).includes('accounts.config_view_raw_data')
+      )!;
     const summary = details.findByType('summary');
     const rawData = renderer.root.findByProps({ 'aria-label': 'accounts.config_view_raw_data' });
     const copyButton = renderer.root
@@ -295,7 +299,13 @@ describe('AccountConfigurationTab', () => {
     expect(
       renderer.root.findAllByType('textarea').every((textarea) => textarea.props.disabled === true)
     ).toBe(true);
-    expect(renderer.root.findByType('details')).toBeDefined();
+    expect(
+      renderer.root
+        .findAllByType('details')
+        .some((node) =>
+          readText(node.findByType('summary')).includes('accounts.config_view_raw_data')
+        )
+    ).toBe(true);
     expect(
       renderer.root
         .findAllByType('button')

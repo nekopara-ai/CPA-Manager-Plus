@@ -144,6 +144,99 @@ describe('useAuthFileConfigurationEditor', () => {
     act(() => renderer?.unmount());
   });
 
+  it('keeps saved policy fields when read-back fails and supports reload and inheritance reset', async () => {
+    const codexFile = {
+      ...file,
+      name: 'codex.json',
+      id: 'runtime-codex-1',
+      type: 'codex',
+      provider: 'codex',
+    };
+    const record = {
+      type: 'codex',
+      auth_index: 'auth-1',
+      account_id: 'account-1',
+      timezone_override: 'America/New_York',
+      fingerprint: { enabled: true },
+      note: 'untouched',
+    };
+    setDownloadedRecord(record);
+    mocks.lookup.mockResolvedValue([codexFile]);
+    await act(async () => {
+      renderer = create(<Harness activeFile={codexFile} />);
+    });
+    await flush();
+    act(() => {
+      latest?.updateField('timezoneMode', 'custom');
+      latest?.updateField('timezoneValue', 'Asia/Tokyo');
+      latest?.updateField('timezoneCountryMode', 'custom');
+      latest?.updateField('timezoneCountryValue', 'JP');
+      latest?.updateField('timezoneRegionMode', 'custom');
+      latest?.updateField('timezoneRegionValue', 'Tokyo');
+      latest?.updateField('timezoneCityMode', 'off');
+      latest?.updateField(
+        'fingerprintText',
+        '{"enabled":false,"question-retries":0,"models":["gpt-6-astra"]}'
+      );
+    });
+    expect(latest?.canSave).toBe(true);
+    mocks.downloadText.mockRejectedValueOnce(new Error('read-back temporarily unavailable'));
+    await act(async () => {
+      await latest?.save();
+    });
+    const patch = {
+      timezone_override: 'Asia/Tokyo',
+      timezone_override_country: 'JP',
+      timezone_override_region: 'Tokyo',
+      timezone_override_city: '',
+      fingerprint: { enabled: false, 'question-retries': 0, models: ['gpt-6-astra'] },
+    };
+    expect(mocks.patchFieldsWithPluginSourceFallback).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'codex.json', authIndex: 'auth-1' }),
+      patch,
+      expect.any(Array)
+    );
+    expect(latest?.state?.record).toEqual({ ...record, ...patch });
+    expect(latest?.draft).toMatchObject({
+      timezoneValue: 'Asia/Tokyo',
+      timezoneCountryValue: 'JP',
+      timezoneRegionValue: 'Tokyo',
+      timezoneCityMode: 'off',
+    });
+    expect(JSON.parse(latest?.draft?.fingerprintText || '{}')).toEqual(patch.fingerprint);
+    expect(latest?.dirty).toBe(false);
+    expect(mocks.showNotification).toHaveBeenCalledWith(
+      expect.stringContaining('read-back temporarily unavailable'),
+      'warning'
+    );
+
+    setDownloadedRecord({ ...record, ...patch });
+    await act(async () => {
+      await latest?.reload();
+    });
+    expect(latest?.state?.record).toEqual({ ...record, ...patch });
+    act(() => {
+      latest?.updateField('timezoneMode', 'inherit');
+      latest?.updateField('timezoneCountryMode', 'inherit');
+      latest?.updateField('timezoneRegionMode', 'inherit');
+      latest?.updateField('timezoneCityMode', 'inherit');
+      latest?.updateField('fingerprintText', '');
+    });
+    mocks.downloadText.mockRejectedValueOnce(new Error('read-back temporarily unavailable'));
+    await act(async () => {
+      await latest?.save();
+    });
+    expect(latest?.state?.record).toEqual({
+      type: 'codex',
+      auth_index: 'auth-1',
+      account_id: 'account-1',
+      note: 'untouched',
+    });
+    expect(latest?.dirty).toBe(false);
+    expect(latest?.draft?.timezoneMode).toBe('inherit');
+    expect(latest?.draft?.fingerprintText).toBe('');
+  });
+
   it('loads, saves a minimal identity-verified patch, and keeps the editor open', async () => {
     await act(async () => {
       renderer = create(<Harness />);

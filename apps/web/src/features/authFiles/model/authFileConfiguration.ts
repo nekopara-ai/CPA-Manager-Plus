@@ -1,5 +1,6 @@
 import {
   readCredentialPolicy,
+  LOCATION_FIELDS,
   parseFingerprintPolicy,
   type CredentialPolicyDraft,
 } from './credentialPolicy';
@@ -65,6 +66,7 @@ export type AuthFileConfigurationErrorKey =
   | 'accounts.config_error_xai_base_url'
   | 'accounts.config_error_cloak_mode'
   | 'accounts.config_error_timezone'
+  | 'accounts.config_error_location'
   | 'accounts.config_error_fingerprint';
 
 export type AuthFileConfigurationErrors = Partial<
@@ -556,9 +558,34 @@ export const buildAuthFileConfigurationPatch = (
       errors.timezoneValue = 'accounts.config_error_timezone';
     }
   }
+  for (const field of LOCATION_FIELDS) {
+    if (
+      draft[field.mode] === originalDraft[field.mode] &&
+      draft[field.value] === originalDraft[field.value]
+    )
+      continue;
+    const mode = draft[field.mode] || 'inherit';
+    const value = (draft[field.value] || '').trim();
+    if (mode === 'custom' && (!value || /[\r\n\0]/.test(value))) {
+      errors[field.value] = 'accounts.config_error_location';
+    } else {
+      patch[field.key] = mode === 'inherit' ? null : mode === 'off' ? '' : value;
+    }
+  }
   if (draft.fingerprintText !== originalDraft.fingerprintText) {
     try {
-      patch.fingerprint = parseFingerprintPolicy(draft.fingerprintText || '');
+      const next = parseFingerprintPolicy(draft.fingerprintText || '');
+      let original: unknown;
+      try {
+        original = originalDraft.fingerprintText?.trim()
+          ? JSON.parse(originalDraft.fingerprintText)
+          : null;
+      } catch {
+        original = undefined;
+      }
+      if (JSON.stringify(next) !== JSON.stringify(original)) {
+        patch.fingerprint = next;
+      }
     } catch {
       errors.fingerprintText = 'accounts.config_error_fingerprint';
     }

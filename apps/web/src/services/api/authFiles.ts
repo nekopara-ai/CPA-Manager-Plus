@@ -49,6 +49,9 @@ type AuthFileModelApiItem = {
 };
 export type AuthFileFieldsPatch = {
   timezone_override?: string | null;
+  timezone_override_country?: string | null;
+  timezone_override_region?: string | null;
+  timezone_override_city?: string | null;
   fingerprint?: FingerprintPolicy | null;
   expired?: string;
   last_refresh?: string;
@@ -661,6 +664,17 @@ export const applyAuthFileFieldsPatchToRecord = (
   fields: AuthFileFieldsPatch
 ): Record<string, unknown> => {
   const next = { ...record };
+  for (const key of [
+    'timezone_override',
+    'timezone_override_country',
+    'timezone_override_region',
+    'timezone_override_city',
+    'fingerprint',
+  ] as const) {
+    if (fields[key] === undefined) continue;
+    if (fields[key] === null) delete next[key];
+    else next[key] = fields[key];
+  }
 
   const applyTrimmedString = (key: string, value: string | undefined) => {
     if (value === undefined) return;
