@@ -93,6 +93,21 @@ func TestCollectorWorkerStartsFromEnvironmentConfig(t *testing.T) {
 }
 
 func TestCollectorServiceRestartAndStop(t *testing.T) {
+	requests := make(chan struct{}, 2)
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests <- struct{}{}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`[]`))
+	}))
+	t.Cleanup(upstream.Close)
+	awaitRequest := func() {
+		t.Helper()
+		select {
+		case <-requests:
+		case <-time.After(5 * time.Second):
+			t.Fatal("collector did not start its local upstream request")
+		}
+	}
 	cfg := workerTestConfig(t)
 	db, err := store.Open(cfg.DBPath)
 	if err != nil {
@@ -104,9 +119,10 @@ func TestCollectorServiceRestartAndStop(t *testing.T) {
 
 	manager := collectorpkg.NewManager(cfg, db)
 	collectorService := collectorservice.New(manager)
+	t.Cleanup(func() { _ = collectorService.Stop(context.Background()) })
 	managerCfg := store.ManagerConfig{
 		CPAConnection: store.ManagerCPAConnectionConfig{
-			CPABaseURL:    "http://cpa.local:8317",
+			CPABaseURL:    upstream.URL,
 			ManagementKey: "management-key",
 		},
 		Collector: store.ManagerCollectorConfig{
@@ -121,14 +137,18 @@ func TestCollectorServiceRestartAndStop(t *testing.T) {
 	if err := collectorService.Start(context.Background(), managerCfg); err != nil {
 		t.Fatalf("start collector: %v", err)
 	}
-	if status := collectorService.Status(); status.Collector != "starting" {
+	// Synchronize with the worker instead of assuming it has not been scheduled yet.
+	awaitRequest()
+	if status := collectorService.Status(); status.Collector != "running" {
 		t.Fatalf("collector status after start = %#v", status)
 	}
 	managerCfg.Collector.PollIntervalMS = int((2 * time.Hour) / time.Millisecond)
 	if err := collectorService.Restart(context.Background(), managerCfg); err != nil {
 		t.Fatalf("restart collector: %v", err)
 	}
-	if status := collectorService.Status(); status.Collector != "starting" {
+	// Synchronize with the worker instead of assuming it has not been scheduled yet.
+	awaitRequest()
+	if status := collectorService.Status(); status.Collector != "running" {
 		t.Fatalf("collector status after restart = %#v", status)
 	}
 	if err := collectorService.Stop(context.Background()); err != nil {
