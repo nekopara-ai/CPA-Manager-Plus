@@ -35,4 +35,12 @@ describe('fingerprint status', () => {
     ).toBe('partial');
     expect(summary({ configuration_error: 'state_invalid' }).state).toBe('blocked');
   });
+  it('does not report unsupported, manually disabled or stale results as current successes', () => {
+    const results = [{ model: 'a', expected_model: 'a', status: 'match', used_outputs: 3 }];
+    expect(summary({ supported: false, results }).state).toBe('unsupported');
+    expect(summary({ manually_disabled: true, running: true, results }).state).toBe('disabled');
+    expect(summary({ results_stale: true, results }).state).toBe('stale');
+    expect(summary({ results_stale: true, blocked: true, results }).state).toBe('blocked');
+    expect(summary({ results_stale: true, running: true, results }).state).toBe('unclassified');
+  });
 });

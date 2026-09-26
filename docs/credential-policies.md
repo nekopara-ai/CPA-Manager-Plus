@@ -71,8 +71,15 @@ counts, errors, next run, cooldown, triggering model, daily budget and history.
 No valid outputs is shown as unavailable, not 0% confidence. Missing backend
 support is not displayed as successful monitoring.
 
-One confident mismatch blocks the entire credential for business requests. Cooldown
-expiry permits diagnostics only; all configured models must pass before recovery.
+One confident mismatch blocks only that credential's corresponding upstream model.
+Healthy siblings, unmonitored models and other credentials remain unaffected.
+Each model has its own cooldown and next-test time; after cooldown, that model's
+successful fresh test restores it without waiting for other models. Account-wide
+`disabled` and `unavailable` flags are not set by a fingerprint model mismatch.
+The panel lists per-model gates and cooldowns, and shows live test progress. Each
+new result displays its actual decision threshold separately from today's config.
+Old/unknown-policy results are labelled historical, never silently reinterpreted.
+Non-Codex providers are explicitly skipped and consume no fingerprint budget.
 The manual disabled bit remains separate and is never automatically cleared.
 Automatic monitoring is off on upgrade, and no production restart is performed by
 editing the UI code. See CPA's `docs/credential-fingerprint.md` for complete runtime,

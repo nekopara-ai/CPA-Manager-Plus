@@ -20,6 +20,7 @@ export interface FingerprintResult {
   status: string;
   prediction?: string;
   probability?: number;
+  confidence?: number;
   used_outputs: number;
   parsed_numbers?: number[];
   bank_version?: string;
@@ -29,6 +30,8 @@ export interface FingerprintResult {
 }
 export interface FingerprintSnapshot {
   enabled: boolean;
+  supported?: boolean;
+  results_stale?: boolean;
   manually_disabled: boolean;
   blocked?: boolean;
   running?: boolean;
@@ -41,6 +44,31 @@ export interface FingerprintSnapshot {
   error?: string;
   requests_today?: number;
   results?: FingerprintResult[];
-  history?: { at: string; results: FingerprintResult[] }[];
+  result_policy?: FingerprintPolicy;
+  model_states?: Record<
+    string,
+    {
+      blocked: boolean;
+      cooldown_until?: string;
+      next_run_at?: string;
+      last_run_at?: string;
+      results_stale?: boolean;
+      result?: FingerprintResult;
+      result_policy?: FingerprintPolicy;
+    }
+  >;
+  current_results?: FingerprintResult[];
+  progress?: {
+    started_at: string;
+    model: string;
+    question: number;
+    attempt: number;
+    completed_questions: number;
+    total_questions: number;
+    request_started_at: string;
+    last_event_at?: string;
+    received_bytes: number;
+  };
+  history?: { at: string; results: FingerprintResult[]; policy?: FingerprintPolicy }[];
   effective?: FingerprintPolicy;
 }

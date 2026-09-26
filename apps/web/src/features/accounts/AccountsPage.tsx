@@ -7870,6 +7870,9 @@ export function AccountsPage() {
             { value: 'unclassified', label: t('accounts.fingerprint_filter_unclassified') },
             { value: 'blocked', label: t('accounts.fingerprint_filter_blocked') },
             { value: 'unknown', label: t('accounts.fingerprint_filter_unknown') },
+            { value: 'stale', label: t('accounts.fingerprint_filter_stale') },
+            { value: 'unsupported', label: t('accounts.fingerprint_filter_unsupported') },
+            { value: 'disabled', label: t('accounts.fingerprint_filter_disabled') },
           ]}
           onChange={(value) => setFingerprintFilter(value as AccountFingerprintFilter)}
           ariaLabel={t('accounts.fingerprint_filter_label')}
