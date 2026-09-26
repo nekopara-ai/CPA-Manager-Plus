@@ -171,6 +171,25 @@ describe('CredentialPolicyFields', () => {
     expect(result.errors).toEqual({});
   });
 
+  it('does not reset model lists, mappings or partial drafts when reselecting Custom', () => {
+    const fingerprint = {
+      models: ['gpt-6-sol'],
+      'expected-models': { 'gpt-6-sol': 'gpt-6-sol' },
+    };
+    render({ fingerprint }, false, { models: ['gpt-6-astra'] });
+    choose('models', 'custom');
+    choose('expected', 'custom');
+    expect(policy()).toEqual(fingerprint);
+    expect(result.patch).toEqual({});
+    enterText('models', 'gpt-6-sol\n');
+    enterText('expected', 'gpt-6-sol =\n');
+    choose('models', 'custom');
+    choose('expected', 'custom');
+    expect(textarea('models').props.value).toBe('gpt-6-sol\n');
+    expect(textarea('expected').props.value).toBe('gpt-6-sol =\n');
+    expect(result.errors.fingerprintText).toBeTruthy();
+  });
+
   it('synchronizes advanced JSON edits, leaves malformed JSON repairable, and resets all overrides', () => {
     render({ fingerprint: { enabled: true } });
     enter('confidence', '0.99');

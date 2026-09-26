@@ -152,6 +152,7 @@ export function FingerprintPolicyFields({
             disabled={controlsDisabled}
             options={options(['inherit', 'custom'])}
             onChange={(v) => {
+              if (v === (value.models == null ? 'inherit' : 'custom')) return;
               edit(
                 'models',
                 v === 'inherit'
@@ -200,6 +201,7 @@ export function FingerprintPolicyFields({
             disabled={controlsDisabled}
             options={options(['inherit', 'custom'])}
             onChange={(v) => {
+              if (v === (value['expected-models'] == null ? 'inherit' : 'custom')) return;
               edit('expected-models', v === 'inherit' ? undefined : {});
               onChange('fingerprintExpectedInput', undefined);
             }}
