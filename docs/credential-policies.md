@@ -84,3 +84,21 @@ The manual disabled bit remains separate and is never automatically cleared.
 Automatic monitoring is off on upgrade, and no production restart is performed by
 editing the UI code. See CPA's `docs/credential-fingerprint.md` for complete runtime,
 storage, replica, budget and statistical limitations.
+
+### Compact model view
+
+The account-list badge reports **restricted / monitored model counts**, including
+when every monitored model is blocked. This never means every business model or
+the credential's manual switch has been disabled. The same filter applies to both
+table and card layouts; automatic model blocks mark the row as needing attention,
+not manually disabled.
+
+Overview uses one responsive card per configured model, including not-yet-tested
+models. Eligibility (fingerprint blocked/allowed, manual disabled, monitoring off)
+is separate from the latest classification. Current-cycle results replace that
+model's prior result rather than being displayed twice. Configuration/state errors
+can fail closed for monitored models but are never presented as fingerprint
+mismatches. Unavailable probabilities and unknown historical thresholds remain
+explicitly unavailable, not zero or the current threshold. Progress uses completed
+questions, while request details, history, bank IDs and effective policy are
+collapsed by default. The layout supports narrow drawers, mobile and dark mode.

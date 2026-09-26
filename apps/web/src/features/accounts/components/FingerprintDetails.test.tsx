@@ -24,8 +24,8 @@ describe('fingerprint details', () => {
       );
     });
     const text = JSON.stringify(renderer!.toJSON());
-    expect(text).toContain('fingerprint_model_blocked');
-    expect(text).toContain('fingerprint_model_allowed');
+    expect(text).toContain('fingerprint_gate_blocked');
+    expect(text).toContain('fingerprint_gate_allowed');
     expect(text).toContain('fingerprint_model_scope');
     expect(text).not.toContain('fingerprint_manual_disabled');
     await act(async () => renderer!.unmount());
@@ -140,4 +140,86 @@ describe('fingerprint details', () => {
     expect(text).not.toContain('0.00%');
     await act(async () => renderer!.unmount());
   });
+});
+
+describe('compact model cards', () => {
+  it('uses one card per configured model, includes pending models and collapses history', async () => {
+    let renderer: ReturnType<typeof create>;
+    await act(async () => {
+      renderer = create(
+        <FingerprintDetails
+          summary={{
+            state: 'blocked',
+            snapshot: {
+              enabled: true,
+              manually_disabled: false,
+              effective: { models: ['sol', 'astra', 'pending'] },
+              blocked: true,
+              model_states: {
+                sol: {
+                  blocked: true,
+                  result: {
+                    model: 'sol',
+                    expected_model: 'sol',
+                    status: 'mismatch',
+                    prediction: 'other',
+                    probability: 0.999,
+                    confidence: 0.5,
+                    used_outputs: 3,
+                  },
+                },
+                astra: { blocked: false },
+              },
+              results: [
+                { model: 'sol', expected_model: 'sol', status: 'mismatch', used_outputs: 3 },
+              ],
+              history: [{ at: '2026-09-27T00:00:00Z', results: [] }],
+            },
+          }}
+        />
+      );
+    });
+    const cards = renderer!.root.findAllByType('article');
+    expect(cards.map((c) => c.props['data-model'])).toEqual(['sol', 'astra', 'pending']);
+    expect(cards.map((c) => c.props['data-gate'])).toEqual(['blocked', 'allowed', 'allowed']);
+    expect(
+      renderer!.root.findByProps({ 'data-fingerprint-history': true }).props.open
+    ).toBeUndefined();
+    expect(JSON.stringify(renderer!.toJSON())).toContain('99.90%');
+    await act(async () => renderer!.unmount());
+  });
+  it.each([
+    ['disabled', true, true],
+    ['off', false, false],
+  ] as const)(
+    'never displays green allowed or an active retest for %s',
+    async (gate, manual, enabled) => {
+      let renderer: ReturnType<typeof create>;
+      await act(async () => {
+        renderer = create(
+          <FingerprintDetails
+            summary={{
+              state: manual ? 'disabled' : 'unknown',
+              snapshot: {
+                enabled,
+                manually_disabled: manual,
+                running: true,
+                configuration_error: 'retained diagnostic error',
+                model_states: { sol: { blocked: true }, astra: { blocked: false } },
+              },
+            }}
+          />
+        );
+      });
+      expect(renderer!.root.findAllByType('article').map((c) => c.props['data-gate'])).toEqual([
+        gate,
+        gate,
+      ]);
+      expect(renderer!.root.findAllByProps({ 'data-fingerprint-progress': true })).toHaveLength(0);
+      const text = JSON.stringify(renderer!.toJSON());
+      expect(text).toContain('fingerprint_inactive_error_hint');
+      expect(text).not.toContain('fingerprint_config_error_hint');
+      await act(async () => renderer!.unmount());
+    }
+  );
 });

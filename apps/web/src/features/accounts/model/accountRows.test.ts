@@ -3549,3 +3549,29 @@ describe('accountRows', () => {
     expect(rows[1]?.provider).toBe('meta');
   });
 });
+
+it('keeps a credential enabled when fingerprint excludes only one model', () => {
+  const [row] = buildAccountRows(
+    [
+      {
+        name: 'fingerprint.json',
+        type: 'codex',
+        disabled: false,
+        unavailable: false,
+        fingerprint_status: {
+          enabled: true,
+          manually_disabled: false,
+          blocked: true,
+          effective: { models: ['sol', 'astra'] },
+          model_states: { sol: { blocked: true }, astra: { blocked: false } },
+        },
+      },
+    ],
+    emptyStores()
+  );
+  expect(row.raw.disabled).toBe(false);
+  expect(row.raw.unavailable).toBe(false);
+  expect(row.fingerprint?.state).toBe('blocked');
+  expect(buildAccountMetrics([row]).disabled).toBe(0);
+  expect(buildAccountMetrics([row]).needsAttention).toBe(1);
+});

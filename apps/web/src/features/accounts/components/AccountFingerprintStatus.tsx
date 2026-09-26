@@ -1,5 +1,8 @@
 import { useTranslation } from 'react-i18next';
-import type { AccountFingerprintSummary } from '../model/accountFingerprint';
+import {
+  fingerprintModelCounts,
+  type AccountFingerprintSummary,
+} from '../model/accountFingerprint';
 import styles from '../AccountsPage.module.scss';
 interface Props {
   summary?: AccountFingerprintSummary;
@@ -16,6 +19,7 @@ export function AccountFingerprintStatus({
 }: Props) {
   const { t } = useTranslation();
   const state = summary?.state ?? 'unknown';
+  const counts = fingerprintModelCounts(summary?.snapshot);
   const tone =
     state === 'ready'
       ? styles.fingerprintToneHealthy
@@ -23,7 +27,24 @@ export function AccountFingerprintStatus({
         ? styles.fingerprintToneDanger
         : styles.fingerprintToneNeutral;
   const className = `${styles.fingerprintStatus} ${tone} ${variant === 'card' ? styles.fingerprintStatusCard : styles.fingerprintStatusTable}`;
-  const content = <strong>{t(`accounts.fingerprint_filter_${state}`)}</strong>;
+  const content = (
+    <>
+      <span className={styles.fingerprintStatusMain}>
+        <span className={styles.fingerprintStatusDot} aria-hidden="true" />
+        <strong>
+          {state === 'blocked' && counts.total > 0
+            ? t('accounts.fingerprint_blocked_count', {
+                count: counts.blocked,
+                total: counts.total,
+              })
+            : t(`accounts.fingerprint_filter_${state}`)}
+        </strong>
+      </span>
+      {summary?.snapshot?.running && !summary.snapshot.manually_disabled && state === 'blocked' && (
+        <small>{t('accounts.fingerprint_rechecking')}</small>
+      )}
+    </>
+  );
   return interactive && onOpen ? (
     <button
       type="button"

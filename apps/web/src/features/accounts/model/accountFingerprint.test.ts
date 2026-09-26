@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { resolveAccountFingerprint, accountFingerprintMatchesFilter } from './accountFingerprint';
+import {
+  resolveAccountFingerprint,
+  accountFingerprintMatchesFilter,
+  resolveFingerprintModels,
+  fingerprintModelCounts,
+} from './accountFingerprint';
 import type { FingerprintSnapshot } from '@/types/fingerprint';
 const summary = (s: Partial<FingerprintSnapshot>) =>
   resolveAccountFingerprint({
@@ -43,4 +48,83 @@ describe('fingerprint status', () => {
     expect(summary({ results_stale: true, blocked: true, results }).state).toBe('blocked');
     expect(summary({ results_stale: true, running: true, results }).state).toBe('unclassified');
   });
+});
+
+describe('per-model display contract', () => {
+  const fixture = (): FingerprintSnapshot => ({
+    enabled: true,
+    manually_disabled: false,
+    blocked: true,
+    effective: { models: ['sol', 'astra', 'pending'], confidence: 0.5 },
+    model_states: {
+      sol: {
+        blocked: true,
+        result: { model: 'sol', expected_model: 'sol', status: 'error', used_outputs: 0 },
+        results_stale: true,
+      },
+      astra: { blocked: false },
+    },
+    results: [{ model: 'sol', expected_model: 'sol', status: 'match', used_outputs: 3 }],
+  });
+  it('keeps prior exclusions during errors, allows pending siblings and respects authoritative per-model results', () => {
+    const s = fixture();
+    const models = resolveFingerprintModels(s);
+    expect(models.map((m) => m.gate)).toEqual(['blocked', 'allowed', 'allowed']);
+    expect(models[0].result?.status).toBe('error');
+    expect(models[0].threshold).toBeUndefined();
+    expect(fingerprintModelCounts(s)).toEqual({ blocked: 1, total: 3 });
+  });
+  it('ignores removed model state and never substitutes the current threshold for an old result', () => {
+    const s = fixture();
+    s.effective!.models = ['astra'];
+    expect(resolveFingerprintModels(s).map((m) => m.model)).toEqual(['astra']);
+    expect(fingerprintModelCounts(s).blocked).toBe(0);
+    s.effective!.models = ['sol'];
+    s.model_states!.sol.result_policy = { confidence: 0.95 };
+    expect(resolveFingerprintModels(s)[0].threshold).toBe(0.95);
+  });
+  it('shows current-cycle results once instead of duplicating old results', () => {
+    const s = fixture();
+    s.current_results = [
+      { model: 'sol', expected_model: 'sol', status: 'match', confidence: 0.5, used_outputs: 3 },
+    ];
+    expect(resolveFingerprintModels(s)[0]).toMatchObject({
+      stale: false,
+      threshold: 0.5,
+      result: { status: 'match' },
+    });
+  });
+  it('configuration errors gate monitored models without calling them mismatches', () => {
+    const s = fixture();
+    s.configuration_error = 'fingerprint_state_invalid';
+    expect(fingerprintModelCounts(s)).toEqual({ blocked: 3, total: 3 });
+    expect(resolveFingerprintModels(s)[1].result).toBeUndefined();
+    s.enabled = false;
+    expect(fingerprintModelCounts(s).blocked).toBe(0);
+  });
+  it('manual disabled remains different from automatic per-model restriction', () => {
+    const s = fixture();
+    s.manually_disabled = true;
+    expect(resolveFingerprintModels(s).every((m) => m.gate === 'disabled')).toBe(true);
+    expect(summary(s).state).toBe('disabled');
+  });
+});
+
+it('normalizes a current manual disable into the details snapshot', () => {
+  const s = resolveAccountFingerprint({
+    name: 'test',
+    disabled: true,
+    fingerprint_status: { enabled: true, manually_disabled: false, effective: { models: ['sol'] } },
+  });
+  expect(s.snapshot?.manually_disabled).toBe(true);
+  expect(resolveFingerprintModels(s.snapshot)[0].gate).toBe('disabled');
+});
+it('mirrors the backend model-family gate for reasoning variants', () => {
+  const s: FingerprintSnapshot = {
+    enabled: true,
+    manually_disabled: false,
+    effective: { models: ['sol', 'sol(high)'] },
+    model_states: { sol: { blocked: false }, 'sol(high)': { blocked: true } },
+  };
+  expect(resolveFingerprintModels(s).map((m) => m.gate)).toEqual(['blocked', 'blocked']);
 });
