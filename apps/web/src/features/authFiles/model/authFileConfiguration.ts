@@ -1,4 +1,9 @@
 import {
+  readCredentialPolicy,
+  parseFingerprintPolicy,
+  type CredentialPolicyDraft,
+} from './credentialPolicy';
+import {
   coolingPolicyFromOverride,
   coolingPolicyToOverride,
   readCredentialCoolingOverride,
@@ -29,8 +34,7 @@ export const AUTH_FILE_WEIGHT_MAX = 1_000_000;
 
 export type XaiRoutingMode = 'grok-build' | 'official-api';
 
-export type AuthFileConfigurationDraft = {
-  codexTicketPlan?: string;
+export type AuthFileConfigurationDraft = CredentialPolicyDraft & {
   prefix: string;
   proxyUrl: string;
   priority: string;
@@ -60,7 +64,8 @@ export type AuthFileConfigurationErrorKey =
   | 'accounts.config_error_request_retry_integer'
   | 'accounts.config_error_xai_base_url'
   | 'accounts.config_error_cloak_mode'
-  | 'accounts.config_error_ticket_plan';
+  | 'accounts.config_error_timezone'
+  | 'accounts.config_error_fingerprint';
 
 export type AuthFileConfigurationErrors = Partial<
   Record<keyof AuthFileConfigurationDraft, AuthFileConfigurationErrorKey>
@@ -378,8 +383,9 @@ export const buildAuthFileConfigurationDraft = (
     requestRetry: readIntegerText(
       record.request_retry ?? record['request-retry'] ?? record.requestRetry
     ),
+    ...readCredentialPolicy(record),
     websockets: readAuthFileWebsockets(record),
-    codexTicketPlan: readTrimmedString(record.codex_turn_ticket_plan) || 'auto',
+
     xaiRoutingMode: usingApi ? 'official-api' : 'grok-build',
     baseUrl:
       providerKey === 'xai' && usingApi
@@ -535,13 +541,27 @@ export const buildAuthFileConfigurationPatch = (
   }
 
   if (
-    normalizeProviderKey(provider) === 'codex' &&
-    draft.codexTicketPlan !== originalDraft.codexTicketPlan
+    draft.timezoneMode !== originalDraft.timezoneMode ||
+    draft.timezoneValue !== originalDraft.timezoneValue
   ) {
-    const plan = draft.codexTicketPlan || 'auto';
-    if (!['auto', 'pro', 'team'].includes(plan))
-      errors.codexTicketPlan = 'accounts.config_error_ticket_plan';
-    else patch.codex_turn_ticket_plan = plan;
+    const mode = draft.timezoneMode || 'inherit';
+    const zone = (draft.timezoneValue || '').trim();
+    try {
+      if (mode === 'custom') {
+        if (!zone) throw new Error('empty timezone');
+        new Intl.DateTimeFormat('en', { timeZone: zone });
+      }
+      patch.timezone_override = mode === 'inherit' ? null : mode === 'off' ? '' : zone;
+    } catch {
+      errors.timezoneValue = 'accounts.config_error_timezone';
+    }
+  }
+  if (draft.fingerprintText !== originalDraft.fingerprintText) {
+    try {
+      patch.fingerprint = parseFingerprintPolicy(draft.fingerprintText || '');
+    } catch {
+      errors.fingerprintText = 'accounts.config_error_fingerprint';
+    }
   }
   if (capabilities.websockets && draft.websockets !== originalDraft.websockets) {
     patch.websockets = draft.websockets;

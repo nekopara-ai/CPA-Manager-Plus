@@ -553,10 +553,10 @@
   min-width: 0;
 }
 
-.turnTicketStatus {
-  --turn-ticket-color: var(--accounts-muted);
-  --turn-ticket-background: color-mix(in srgb, var(--accounts-muted) 7%, transparent);
-  --turn-ticket-border: color-mix(in srgb, var(--accounts-muted) 24%, var(--accounts-border));
+.fingerprintStatus {
+  --fingerprint-color: var(--accounts-muted);
+  --fingerprint-background: color-mix(in srgb, var(--accounts-muted) 7%, transparent);
+  --fingerprint-border: color-mix(in srgb, var(--accounts-muted) 24%, var(--accounts-border));
 
   display: inline-flex;
   flex-direction: column;
@@ -566,10 +566,10 @@
   min-width: 0;
   max-width: 100%;
   padding: 7px 9px;
-  border: 1px solid var(--turn-ticket-border);
+  border: 1px solid var(--fingerprint-border);
   border-radius: 9px;
-  background: var(--turn-ticket-background);
-  color: var(--turn-ticket-color);
+  background: var(--fingerprint-background);
+  color: var(--fingerprint-color);
   font: inherit;
   line-height: 1.2;
   text-align: left;
@@ -579,12 +579,12 @@
     cursor: pointer;
 
     &:hover {
-      border-color: color-mix(in srgb, var(--turn-ticket-color) 45%, var(--accounts-border));
-      background: color-mix(in srgb, var(--turn-ticket-color) 12%, var(--accounts-surface));
+      border-color: color-mix(in srgb, var(--fingerprint-color) 45%, var(--accounts-border));
+      background: color-mix(in srgb, var(--fingerprint-color) 12%, var(--accounts-surface));
     }
 
     &:focus-visible {
-      outline: 2px solid color-mix(in srgb, var(--turn-ticket-color) 55%, transparent);
+      outline: 2px solid color-mix(in srgb, var(--fingerprint-color) 55%, transparent);
       outline-offset: 2px;
     }
   }
@@ -592,7 +592,7 @@
   small {
     max-width: 100%;
     overflow: hidden;
-    color: color-mix(in srgb, var(--turn-ticket-color) 76%, var(--accounts-muted));
+    color: color-mix(in srgb, var(--fingerprint-color) 76%, var(--accounts-muted));
     font-size: 10.5px;
     font-weight: 650;
     text-overflow: ellipsis;
@@ -600,7 +600,7 @@
   }
 }
 
-.turnTicketStatusMain {
+.fingerprintStatusMain {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -616,7 +616,7 @@
   }
 }
 
-.turnTicketStatusDot {
+.fingerprintStatusDot {
   width: 7px;
   height: 7px;
   flex: 0 0 7px;
@@ -625,16 +625,16 @@
   box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 12%, transparent);
 }
 
-.turnTicketStatusTable {
+.fingerprintStatusTable {
   width: 100%;
 }
 
-.turnTicketStatusCard {
+.fingerprintStatusCard {
   width: auto;
   min-width: min(170px, 100%);
 }
 
-.turnTicketStatusNotApplicable {
+.fingerprintStatusNotApplicable {
   align-items: center;
   width: 100%;
   padding: 0;
@@ -643,26 +643,26 @@
   color: var(--accounts-muted);
 }
 
-.turnTicketToneHealthy {
-  --turn-ticket-color: var(--accounts-success);
-  --turn-ticket-background: color-mix(in srgb, var(--accounts-success) 8%, var(--accounts-surface));
-  --turn-ticket-border: color-mix(in srgb, var(--accounts-success) 27%, var(--accounts-border));
+.fingerprintToneHealthy {
+  --fingerprint-color: var(--accounts-success);
+  --fingerprint-background: color-mix(in srgb, var(--accounts-success) 8%, var(--accounts-surface));
+  --fingerprint-border: color-mix(in srgb, var(--accounts-success) 27%, var(--accounts-border));
 }
 
-.turnTicketToneWarning {
-  --turn-ticket-color: var(--accounts-warning);
-  --turn-ticket-background: color-mix(in srgb, var(--accounts-warning) 9%, var(--accounts-surface));
-  --turn-ticket-border: color-mix(in srgb, var(--accounts-warning) 30%, var(--accounts-border));
+.fingerprintToneWarning {
+  --fingerprint-color: var(--accounts-warning);
+  --fingerprint-background: color-mix(in srgb, var(--accounts-warning) 9%, var(--accounts-surface));
+  --fingerprint-border: color-mix(in srgb, var(--accounts-warning) 30%, var(--accounts-border));
 }
 
-.turnTicketToneDanger {
-  --turn-ticket-color: var(--accounts-danger);
-  --turn-ticket-background: color-mix(in srgb, var(--accounts-danger) 7%, var(--accounts-surface));
-  --turn-ticket-border: color-mix(in srgb, var(--accounts-danger) 28%, var(--accounts-border));
+.fingerprintToneDanger {
+  --fingerprint-color: var(--accounts-danger);
+  --fingerprint-background: color-mix(in srgb, var(--accounts-danger) 7%, var(--accounts-surface));
+  --fingerprint-border: color-mix(in srgb, var(--accounts-danger) 28%, var(--accounts-border));
 }
 
-.turnTicketToneNeutral {
-  --turn-ticket-color: var(--accounts-muted);
+.fingerprintToneNeutral {
+  --fingerprint-color: var(--accounts-muted);
 }
 
 .accountGridCardMetaRow {
@@ -1299,7 +1299,7 @@
 .accountCardIdentity,
 .accountCardPlan,
 .accountCardHealth,
-.accountCardTicket,
+.accountCardFingerprint,
 .accountCardLatestRequest,
 .accountCardBusiness,
 .accountCardRecommendation {
@@ -1549,7 +1549,7 @@
   justify-content: center;
 }
 
-.accountCardTicket {
+.accountCardFingerprint {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3304,12 +3304,12 @@
   min-width: 0;
 }
 
-.overviewTurnTicketCard {
+.overviewFingerprintCard {
   grid-column: 1 / -1;
 }
 
-.overviewTurnTicketSummary,
-.overviewTurnTicketModelFields {
+.overviewFingerprintSummary,
+.overviewFingerprintModelFields {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 7px;
@@ -3341,12 +3341,12 @@
   }
 }
 
-.overviewTurnTicketModels {
+.overviewFingerprintModels {
   display: grid;
   gap: 8px;
 }
 
-.overviewTurnTicketModel {
+.overviewFingerprintModel {
   display: grid;
   gap: 9px;
   padding: 11px;
@@ -3355,7 +3355,7 @@
   background: color-mix(in srgb, var(--accounts-muted-surface) 38%, var(--accounts-surface));
 }
 
-.overviewTurnTicketModelHeader {
+.overviewFingerprintModelHeader {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -3382,7 +3382,7 @@
   }
 }
 
-.overviewTurnTicketModelFields {
+.overviewFingerprintModelFields {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
@@ -6547,8 +6547,8 @@
   .overviewRecentStatusLayout,
   .overviewEvidenceRow,
   .overviewFieldGrid,
-  .overviewTurnTicketSummary,
-  .overviewTurnTicketModelFields {
+  .overviewFingerprintSummary,
+  .overviewFingerprintModelFields {
     grid-template-columns: 1fr;
   }
 
@@ -6736,7 +6736,7 @@
 
   .accountCardIdentity,
   .accountCardHealth,
-  .accountCardTicket,
+  .accountCardFingerprint,
   .accountCardLatestRequest,
   .accountCardEvidence,
   .accountCardBusiness,
@@ -6757,7 +6757,7 @@
   }
 
   .accountCardHealth,
-  .accountCardTicket,
+  .accountCardFingerprint,
   .accountCardLatestRequest,
   .accountCardEvidence,
   .accountCardBusiness,
@@ -6779,8 +6779,8 @@
   .overviewRecentStatusLayout,
   .overviewEvidenceRow,
   .overviewFieldGrid,
-  .overviewTurnTicketSummary,
-  .overviewTurnTicketModelFields {
+  .overviewFingerprintSummary,
+  .overviewFingerprintModelFields {
     grid-template-columns: 1fr;
   }
 
@@ -6871,7 +6871,7 @@
   }
 
   .accountCardHealth,
-  .accountCardTicket,
+  .accountCardFingerprint,
   .accountCardLatestRequest,
   .accountCardEvidence,
   .accountCardBusiness,
@@ -6880,7 +6880,7 @@
   }
 
   .accountCardHealth,
-  .accountCardTicket,
+  .accountCardFingerprint,
   .accountCardLatestRequest,
   .accountCardEvidence,
   .accountCardBusiness,

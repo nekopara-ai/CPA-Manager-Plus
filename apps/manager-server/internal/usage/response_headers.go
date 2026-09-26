@@ -11,26 +11,15 @@ import (
 )
 
 type ResponseHeaderMetadata struct {
-	CodexTurnState *HeaderCodexTurnStateMetadata `json:"codex_turn_state,omitempty"`
-	Quota          *HeaderQuotaMetadata          `json:"quota,omitempty"`
-	Errors         *HeaderErrorMetadata          `json:"errors,omitempty"`
-	Trace          *HeaderTraceMetadata          `json:"trace,omitempty"`
-	Routing        *HeaderRoutingMetadata        `json:"routing,omitempty"`
-	Response       *HeaderResponseMetadata       `json:"response,omitempty"`
-	Providers      *HeaderProviderMetadata       `json:"providers,omitempty"`
-	RateLimit      *HeaderRateLimitMetadata      `json:"rate_limit,omitempty"`
-	DataPolicy     *HeaderDataPolicyMetadata     `json:"data_policy,omitempty"`
-	ProviderUsage  *ProviderUsageMetadata        `json:"provider_usage,omitempty"`
-}
-
-// HeaderCodexTurnStateMetadata keeps independent request and response observations.
-// Request fields describe that attempt's outbound header, never the current cache.
-// Response length alone does not establish injection or ticket validity.
-type HeaderCodexTurnStateMetadata struct {
-	RequestLength  *int   `json:"request_length,omitempty"`
-	RequestSource  string `json:"request_source,omitempty"`
-	RequestScope   string `json:"request_scope,omitempty"`
-	ResponseLength int    `json:"response_length,omitempty"`
+	Quota         *HeaderQuotaMetadata      `json:"quota,omitempty"`
+	Errors        *HeaderErrorMetadata      `json:"errors,omitempty"`
+	Trace         *HeaderTraceMetadata      `json:"trace,omitempty"`
+	Routing       *HeaderRoutingMetadata    `json:"routing,omitempty"`
+	Response      *HeaderResponseMetadata   `json:"response,omitempty"`
+	Providers     *HeaderProviderMetadata   `json:"providers,omitempty"`
+	RateLimit     *HeaderRateLimitMetadata  `json:"rate_limit,omitempty"`
+	DataPolicy    *HeaderDataPolicyMetadata `json:"data_policy,omitempty"`
+	ProviderUsage *ProviderUsageMetadata    `json:"provider_usage,omitempty"`
 }
 
 type HeaderQuotaMetadata struct {
@@ -147,15 +136,14 @@ func ParseResponseHeaderMetadata(raw any, base time.Time) *ResponseHeaderMetadat
 	}
 
 	metadata := &ResponseHeaderMetadata{
-		CodexTurnState: parseCodexTurnStateHeaders(headers),
-		Quota:          parseQuotaHeaders(headers, base),
-		Errors:         parseErrorHeaders(headers, base),
-		Trace:          parseTraceHeaders(headers),
-		Routing:        parseRoutingHeaders(headers),
-		Response:       parseResponseShapeHeaders(headers),
-		Providers:      parseProviderHeaders(headers),
-		RateLimit:      parseRateLimitHeaders(headers),
-		DataPolicy:     parseDataPolicyHeaders(headers),
+		Quota:      parseQuotaHeaders(headers, base),
+		Errors:     parseErrorHeaders(headers, base),
+		Trace:      parseTraceHeaders(headers),
+		Routing:    parseRoutingHeaders(headers),
+		Response:   parseResponseShapeHeaders(headers),
+		Providers:  parseProviderHeaders(headers),
+		RateLimit:  parseRateLimitHeaders(headers),
+		DataPolicy: parseDataPolicyHeaders(headers),
 	}
 	if metadata.isEmpty() {
 		return nil
@@ -173,7 +161,6 @@ func ParseResponseHeaderMetadataFromRawJSON(rawJSON string, base time.Time) *Res
 		return nil
 	}
 	metadata := ParseResponseHeaderMetadata(first(record, "response_headers", "responseHeaders", "headers"), base)
-	metadata = attachCodexRequestTurnState(metadata, record)
 	return attachProviderUsageMetadata(metadata, ProviderUsageMetadataFromRecord(record, base))
 }
 
@@ -196,7 +183,6 @@ func ResponseHeaderMetadataFromRecord(record map[string]any, base time.Time) *Re
 		metadata,
 		ParseResponseHeaderMetadata(first(record, "response_headers", "responseHeaders", "headers"), base),
 	)
-	metadata = attachCodexRequestTurnState(metadata, record)
 	return attachProviderUsageMetadata(metadata, ProviderUsageMetadataFromRecord(record, base))
 }
 
@@ -281,15 +267,6 @@ func MergeResponseHeaderMetadata(existing *ResponseHeaderMetadata, overlay *Resp
 	var merged ResponseHeaderMetadata
 	if json.Unmarshal(mergedRaw, &merged) != nil {
 		return cloneResponseHeaderMetadata(existing)
-	}
-	// Request provenance is one observation, not independently mergeable fields.
-	// In particular an HTTP overlay must clear an older websocket scope while
-	// a response-only overlay must leave the request observation untouched.
-	if overlay.CodexTurnState != nil && overlay.CodexTurnState.RequestLength != nil && merged.CodexTurnState != nil {
-		length := *overlay.CodexTurnState.RequestLength
-		merged.CodexTurnState.RequestLength = &length
-		merged.CodexTurnState.RequestSource = overlay.CodexTurnState.RequestSource
-		merged.CodexTurnState.RequestScope = overlay.CodexTurnState.RequestScope
 	}
 	merged.ProviderUsage = providerUsage
 	sanitizeResponseHeaderMetadata(&merged)
@@ -378,7 +355,6 @@ func sanitizeResponseHeaderMetadata(metadata *ResponseHeaderMetadata) {
 	if metadata == nil {
 		return
 	}
-	metadata.CodexTurnState = sanitizeCodexTurnState(metadata.CodexTurnState)
 	if metadata.Quota != nil {
 		metadata.Quota.PlanType = normalizeHeaderValue(metadata.Quota.PlanType)
 		metadata.Quota.ActiveLimit = normalizeHeaderValue(metadata.Quota.ActiveLimit)
@@ -487,8 +463,7 @@ func sanitizeResponseHeaderMetadata(metadata *ResponseHeaderMetadata) {
 
 func (m *ResponseHeaderMetadata) isEmpty() bool {
 	return m == nil ||
-		(m.CodexTurnState == nil &&
-			m.Quota == nil &&
+		(m.Quota == nil &&
 			m.Errors == nil &&
 			m.Trace == nil &&
 			m.Routing == nil &&
@@ -617,14 +592,6 @@ func isResponseHeaderAllowed(key string) bool {
 
 func isSafeTokenRateLimitHeader(key string) bool {
 	return key == "x-ratelimit-limit-tokens" || key == "x-ratelimit-remaining-tokens"
-}
-
-func parseCodexTurnStateHeaders(headers map[string][]string) *HeaderCodexTurnStateMetadata {
-	state := headerFirst(headers, "x-codex-turn-state")
-	if state == "" || strings.EqualFold(state, "[redacted]") {
-		return nil
-	}
-	return &HeaderCodexTurnStateMetadata{ResponseLength: len(state)}
 }
 
 func headerValues(raw any) []string {

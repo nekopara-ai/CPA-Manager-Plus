@@ -396,58 +396,6 @@ describe('authFilesApi list normalization', () => {
     expect(result.total).toBe(2);
   });
 
-  it('merges same-name auth file representations when authIndex and runtime ID match', async () => {
-    mocks.get.mockResolvedValue({
-      files: [
-        {
-          name: 'shared.json',
-          id: 'runtime-a',
-          type: 'codex',
-          authIndex: 'auth-1',
-          source: 'runtime',
-          status: 'ok',
-          codex_turn_ticket: {
-            configured: true,
-            enabled: true,
-            target_length: 292,
-            state: 'healthy',
-            healthy_models: 1,
-            total_models: 1,
-          },
-        },
-        {
-          name: 'shared.json',
-          id: 'runtime-a',
-          type: 'codex',
-          authIndex: 'auth-1',
-          source: 'file',
-          path: '/auth/shared.json',
-          size: 123,
-        },
-      ],
-    });
-
-    const result = await authFilesApi.list();
-
-    expect(result.files).toHaveLength(1);
-    expect(result.files[0]).toEqual(
-      expect.objectContaining({
-        name: 'shared.json',
-        id: 'runtime-a',
-        authIndex: 'auth-1',
-        source: 'file',
-        path: '/auth/shared.json',
-        size: 123,
-        status: 'ok',
-        codex_turn_ticket: expect.objectContaining({
-          state: 'healthy',
-          target_length: 292,
-        }),
-      })
-    );
-    expect(result.total).toBe(1);
-  });
-
   it('still merges duplicate same-name rows when authIndex is absent', async () => {
     mocks.get.mockResolvedValue({
       files: [

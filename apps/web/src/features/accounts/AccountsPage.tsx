@@ -295,10 +295,10 @@ import {
   AccountOverviewTab,
   AccountProviderTabs,
   AccountQuotaTab,
-  AccountTurnTicketStatus,
+  AccountFingerprintStatus,
   AccountsBatchDeletePreview,
 } from '@/features/accounts/components';
-import type { AccountTurnTicketFilter } from '@/features/accounts/model/accountTurnTicket';
+import type { AccountFingerprintFilter } from '@/features/accounts/model/accountFingerprint';
 import {
   accountQuotaSnapshotApi,
   authFilesApi,
@@ -1450,8 +1450,8 @@ export function AccountsPage() {
   const [quotaBandFilter, setQuotaBandFilter] = useState<AccountQuotaBand>(
     () => initialWorkspaceUrlState.current.quotaBandFilter
   );
-  const [turnTicketFilter, setTurnTicketFilter] = useState<AccountTurnTicketFilter>(
-    () => initialWorkspaceUrlState.current.turnTicketFilter
+  const [fingerprintFilter, setFingerprintFilter] = useState<AccountFingerprintFilter>(
+    () => initialWorkspaceUrlState.current.fingerprintFilter
   );
   const [operationalFilter, setOperationalFilter] = useState<AccountOperationalFilter>(
     () => initialWorkspaceUrlState.current.operationalFilter
@@ -1752,9 +1752,9 @@ export function AccountsPage() {
   const pendingExternalHashNavigationRef = useRef('');
   const quotaRequestVersionsRef = useRef<Map<string, number>>(new Map());
   const resettingQuotaKeysRef = useRef<Set<string>>(new Set());
-  const codexResetCreditDetailRequestsRef = useRef<
-    Map<string, CodexResetCreditRequestEntry>
-  >(new Map());
+  const codexResetCreditDetailRequestsRef = useRef<Map<string, CodexResetCreditRequestEntry>>(
+    new Map()
+  );
   const codexResetCreditAutoFetchAttemptedSignaturesRef = useRef<Set<string>>(new Set());
   const identityCopyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const accountSortDropdownRef = useRef<HTMLDivElement | null>(null);
@@ -4337,7 +4337,7 @@ export function AccountsPage() {
         status: statusFilter,
         plan: planFilterValue,
         quotaBand: quotaBandFilter,
-        turnTicket: turnTicketFilter,
+        fingerprint: fingerprintFilter,
         search,
         codexStatusBySelectionKey,
         pendingActionsByRowKey: actionCandidatesByRowKey,
@@ -4355,7 +4355,7 @@ export function AccountsPage() {
       rows,
       search,
       statusFilter,
-      turnTicketFilter,
+      fingerprintFilter,
     ]
   );
   const filteredRows = useMemo(() => {
@@ -5028,7 +5028,7 @@ export function AccountsPage() {
     quotaBandFilter,
     search,
     statusFilter,
-    turnTicketFilter,
+    fingerprintFilter,
   ]);
 
   useEffect(() => {
@@ -5038,7 +5038,7 @@ export function AccountsPage() {
       statusFilter,
       planFilter,
       quotaBandFilter,
-      turnTicketFilter,
+      fingerprintFilter,
       operationalFilter,
       accountSort,
       pageSize,
@@ -5056,7 +5056,7 @@ export function AccountsPage() {
     quotaBandFilter,
     search,
     statusFilter,
-    turnTicketFilter,
+    fingerprintFilter,
   ]);
 
   const workspaceUrlState = useMemo(
@@ -5066,7 +5066,7 @@ export function AccountsPage() {
       statusFilter,
       planFilter,
       quotaBandFilter,
-      turnTicketFilter,
+      fingerprintFilter,
       operationalFilter,
       accountSort,
       pageSize,
@@ -5101,7 +5101,7 @@ export function AccountsPage() {
       search,
       selectedRowKey,
       statusFilter,
-      turnTicketFilter,
+      fingerprintFilter,
     ]
   );
 
@@ -5186,7 +5186,7 @@ export function AccountsPage() {
       setStatusFilter(next.statusFilter);
       setPlanFilter(next.planFilter);
       setQuotaBandFilter(next.quotaBandFilter);
-      setTurnTicketFilter(next.turnTicketFilter);
+      setFingerprintFilter(next.fingerprintFilter);
       setOperationalFilter(next.operationalFilter);
       setAccountSort(next.accountSort);
       setPageSize(next.pageSize);
@@ -5582,12 +5582,11 @@ export function AccountsPage() {
                   },
                 };
               }
-              const base: CodexQuotaState =
-                active ?? {
-                  status: 'success',
-                  windows: [],
-                  ...buildQuotaCredentialIdentity(row.raw),
-                };
+              const base: CodexQuotaState = active ?? {
+                status: 'success',
+                windows: [],
+                ...buildQuotaCredentialIdentity(row.raw),
+              };
               const resolvedCount = resolveCodexResetCreditsObservationCount(
                 data.availableCount,
                 data.credits,
@@ -5612,15 +5611,12 @@ export function AccountsPage() {
                 const resultingCount = merged.rateLimitResetCreditsAvailableCount;
                 const resultingEvidence =
                   merged.resetCreditsCountEvidenceAtMs ?? data.observedAtMs ?? Date.now();
-                const resultingSig = buildCodexResetCreditAutoFetchSignature(
-                  row.selectionKey,
-                  {
-                    rateLimitResetCreditsAvailableCount: resultingCount,
-                    resetCreditsCountEvidenceAtMs: resultingEvidence,
-                    resetCreditsDetailEvidenceAtMs: merged.resetCreditsDetailEvidenceAtMs,
-                    resetCreditsDetailStale: merged.resetCreditsDetailStale,
-                  }
-                );
+                const resultingSig = buildCodexResetCreditAutoFetchSignature(row.selectionKey, {
+                  rateLimitResetCreditsAvailableCount: resultingCount,
+                  resetCreditsCountEvidenceAtMs: resultingEvidence,
+                  resetCreditsDetailEvidenceAtMs: merged.resetCreditsDetailEvidenceAtMs,
+                  resetCreditsDetailStale: merged.resetCreditsDetailStale,
+                });
                 codexResetCreditAutoFetchAttemptedSignaturesRef.current.add(resultingSig);
               }
 
@@ -5658,7 +5654,9 @@ export function AccountsPage() {
               };
             });
           });
-          return committed ? { availableCount: null, credits: [], creditsObserved: false, error: message } : null;
+          return committed
+            ? { availableCount: null, credits: [], creditsObserved: false, error: message }
+            : null;
         }
       })();
 
@@ -5712,16 +5710,12 @@ export function AccountsPage() {
           result.resetCreditsCountEvidenceAtMs ??
           result.observedAtMs ??
           resolveCodexResetCreditsCountEvidenceAtMs(displayQuota);
-        const resultingSig = buildCodexResetCreditAutoFetchSignature(
-          selectedRow.selectionKey,
-          {
-            rateLimitResetCreditsAvailableCount: resultingCount,
-            resetCreditsCountEvidenceAtMs: resultingEvidence,
-            resetCreditsDetailEvidenceAtMs:
-              resolveCodexResetCreditsDetailEvidenceAtMs(displayQuota),
-            resetCreditsDetailStale: displayQuota?.resetCreditsDetailStale,
-          }
-        );
+        const resultingSig = buildCodexResetCreditAutoFetchSignature(selectedRow.selectionKey, {
+          rateLimitResetCreditsAvailableCount: resultingCount,
+          resetCreditsCountEvidenceAtMs: resultingEvidence,
+          resetCreditsDetailEvidenceAtMs: resolveCodexResetCreditsDetailEvidenceAtMs(displayQuota),
+          resetCreditsDetailStale: displayQuota?.resetCreditsDetailStale,
+        });
         codexResetCreditAutoFetchAttemptedSignaturesRef.current.add(resultingSig);
       }
     });
@@ -7179,20 +7173,20 @@ export function AccountsPage() {
                   windows: [],
                   ...buildQuotaCredentialIdentity(row.raw),
                 };
-                    const nowMs = Date.now();
-                    return {
-                      ...prev,
-                      [storeKey]: {
-                        ...baseState,
-                        rateLimitResetCreditsAvailableCount: null,
-                        rateLimitResetCredits: [],
-                        rateLimitResetCreditsError: null,
-                        resetCreditsEvidenceAtMs: nowMs,
-                        resetCreditsCountEvidenceAtMs: null,
-                        resetCreditsDetailEvidenceAtMs: null,
-                        resetCreditsDetailStale: true,
-                      },
-                    };
+                const nowMs = Date.now();
+                return {
+                  ...prev,
+                  [storeKey]: {
+                    ...baseState,
+                    rateLimitResetCreditsAvailableCount: null,
+                    rateLimitResetCredits: [],
+                    rateLimitResetCreditsError: null,
+                    resetCreditsEvidenceAtMs: nowMs,
+                    resetCreditsCountEvidenceAtMs: null,
+                    resetCreditsDetailEvidenceAtMs: null,
+                    resetCreditsDetailStale: true,
+                  },
+                };
               });
             });
             setQuotaSnapshotWindowsByRowKey((current) => {
@@ -7564,14 +7558,14 @@ export function AccountsPage() {
     planFilter === 'all' ? t('accounts.plan_all') : getPlanOptionLabel(rows, planFilter, t);
   const selectedQuotaFilterLabel =
     quotaBandFilter === 'all' ? t('accounts.quota_all') : t(`accounts.quota_${quotaBandFilter}`);
-  const selectedTurnTicketFilterLabel = t(`accounts.turn_ticket_filter_${turnTicketFilter}`);
+  const selectedFingerprintFilterLabel = t(`accounts.fingerprint_filter_${fingerprintFilter}`);
   const selectedOperationalFilterLabel = t(`accounts.operational_${effectiveOperationalFilter}`);
   const activeMobileFilterCount = [
     statusFilter !== 'all',
     effectiveOperationalFilter !== 'all',
     planFilter !== 'all',
     quotaBandFilter !== 'all',
-    turnTicketFilter !== 'all',
+    fingerprintFilter !== 'all',
     accountSort.key !== 'default',
   ].filter(Boolean).length;
   const mobileFilterSummary =
@@ -7582,7 +7576,7 @@ export function AccountsPage() {
           effectiveOperationalFilter !== 'all' ? selectedOperationalFilterLabel : null,
           planFilter !== 'all' ? selectedPlanFilterLabel : null,
           quotaBandFilter !== 'all' ? selectedQuotaFilterLabel : null,
-          turnTicketFilter !== 'all' ? selectedTurnTicketFilterLabel : null,
+          fingerprintFilter !== 'all' ? selectedFingerprintFilterLabel : null,
           accountSort.key !== 'default' ? selectedAccountSortLabel : null,
         ]
           .filter(Boolean)
@@ -7616,7 +7610,7 @@ export function AccountsPage() {
     setOperationalFilter('all');
     setPlanFilter('all');
     setQuotaBandFilter('all');
-    setTurnTicketFilter('all');
+    setFingerprintFilter('all');
     setAccountSort({ key: 'default', direction: 'desc' });
     setPage(1);
     setIsAccountSortDropdownOpen(false);
@@ -7867,18 +7861,18 @@ export function AccountsPage() {
       </div>
       <div className={styles.filterField}>
         <Select
-          value={turnTicketFilter}
+          value={fingerprintFilter}
           options={[
-            { value: 'all', label: t('accounts.turn_ticket_filter_all') },
-            { value: 'ready', label: t('accounts.turn_ticket_filter_ready') },
-            { value: 'partial', label: t('accounts.turn_ticket_filter_partial') },
-            { value: 'missing', label: t('accounts.turn_ticket_filter_missing') },
-            { value: 'unclassified', label: t('accounts.turn_ticket_filter_unclassified') },
-            { value: 'blocked', label: t('accounts.turn_ticket_filter_blocked') },
-            { value: 'unknown', label: t('accounts.turn_ticket_filter_unknown') },
+            { value: 'all', label: t('accounts.fingerprint_filter_all') },
+            { value: 'ready', label: t('accounts.fingerprint_filter_ready') },
+            { value: 'partial', label: t('accounts.fingerprint_filter_partial') },
+            { value: 'missing', label: t('accounts.fingerprint_filter_missing') },
+            { value: 'unclassified', label: t('accounts.fingerprint_filter_unclassified') },
+            { value: 'blocked', label: t('accounts.fingerprint_filter_blocked') },
+            { value: 'unknown', label: t('accounts.fingerprint_filter_unknown') },
           ]}
-          onChange={(value) => setTurnTicketFilter(value as AccountTurnTicketFilter)}
-          ariaLabel={t('accounts.turn_ticket_filter_label')}
+          onChange={(value) => setFingerprintFilter(value as AccountFingerprintFilter)}
+          ariaLabel={t('accounts.fingerprint_filter_label')}
           triggerClassName={styles.toolbarSelectTrigger}
         />
       </div>
@@ -8359,9 +8353,7 @@ export function AccountsPage() {
       </Button>
     ) : null;
 
-    const getAccountManualQuotaRefreshMode = (
-      targetRow: AccountRow
-    ): AccountQuotaRefreshMode =>
+    const getAccountManualQuotaRefreshMode = (targetRow: AccountRow): AccountQuotaRefreshMode =>
       targetRow.provider === CODEX_CONFIG.type ? 'detail' : 'summary';
 
     const refreshButton =
@@ -8727,9 +8719,7 @@ export function AccountsPage() {
       }),
     });
     const codexQuotaState =
-      row.provider === CODEX_CONFIG.type
-        ? getDisplayCodexResetEvidenceQuota(row)
-        : undefined;
+      row.provider === CODEX_CONFIG.type ? getDisplayCodexResetEvidenceQuota(row) : undefined;
     const codexResetCreditsCount =
       codexQuotaState?.rateLimitResetCreditsAvailableCount ??
       codexQuotaState?.rateLimitResetCredits?.length ??
@@ -9264,8 +9254,8 @@ export function AccountsPage() {
                     className={styles.accountGridCardTicket}
                     onClick={(event) => event.stopPropagation()}
                   >
-                    <AccountTurnTicketStatus
-                      summary={row.turnTicket}
+                    <AccountFingerprintStatus
+                      summary={row.fingerprint}
                       provider={row.provider}
                       variant="card"
                       interactive={!isSelectionMode}
@@ -9428,7 +9418,7 @@ export function AccountsPage() {
                 <span>{t('accounts.list_header_credential')}</span>
                 <span>{t('accounts.list_header_plan')}</span>
                 <span>{t('accounts.list_header_availability')}</span>
-                <span>{t('accounts.list_header_turn_ticket')}</span>
+                <span>{t('accounts.list_header_fingerprint')}</span>
                 <span>{t('accounts.list_header_recent_requests')}</span>
                 <span>{t('accounts.list_header_historical_usage')}</span>
                 <span>{t('accounts.list_header_quota')}</span>
@@ -9605,9 +9595,9 @@ export function AccountsPage() {
                       </div>
                     </div>
 
-                    <div className={styles.accountCardTicket}>
-                      <AccountTurnTicketStatus
-                        summary={row.turnTicket}
+                    <div className={styles.accountCardFingerprint}>
+                      <AccountFingerprintStatus
+                        summary={row.fingerprint}
                         provider={row.provider}
                         interactive={!isSelectionMode}
                         onOpen={() => void openAccountDetail(row, 'overview')}
@@ -9875,7 +9865,7 @@ export function AccountsPage() {
       return (
         <AccountOverviewTab
           detailView={detailView}
-          turnTicket={selectedRow.turnTicket}
+          fingerprint={selectedRow.fingerprint}
           getHealthStatusClass={getHealthStatusClass}
           onSelectTab={(tab) => void openAccountDetail(selectedRow, tab)}
         />

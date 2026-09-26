@@ -1961,12 +1961,6 @@ export interface ProviderUsageMetadata {
 }
 
 export interface ResponseHeaderMetadata {
-  codex_turn_state?: {
-    request_length?: number;
-    request_source?: 'cache' | 'passthrough' | 'none';
-    request_scope?: 'websocket_handshake';
-    response_length?: number;
-  };
   quota?: ResponseHeaderQuotaMetadata;
   errors?: ResponseHeaderErrorMetadata;
   trace?: ResponseHeaderTraceMetadata;

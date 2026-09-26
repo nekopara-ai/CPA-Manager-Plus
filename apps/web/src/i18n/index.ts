@@ -1,4 +1,3 @@
-import { gatewayMintEn, gatewayMintZhCN, gatewayMintZhTW, gatewayMintRu } from './gatewayMint';
 /**
  * i18next 国际化配置
  */
@@ -13,10 +12,10 @@ import { getInitialLanguage } from '@/utils/language';
 
 i18n.use(initReactI18next).init({
   resources: {
-    'zh-CN': { translation: { ...zhCN, gateway_mint: gatewayMintZhCN } },
-    'zh-TW': { translation: { ...zhTW, gateway_mint: gatewayMintZhTW } },
-    en: { translation: { ...en, gateway_mint: gatewayMintEn } },
-    ru: { translation: { ...ru, gateway_mint: gatewayMintRu } },
+    'zh-CN': { translation: { ...zhCN } },
+    'zh-TW': { translation: { ...zhTW } },
+    en: { translation: { ...en } },
+    ru: { translation: { ...ru } },
   },
   lng: getInitialLanguage(),
   fallbackLng: 'zh-CN',

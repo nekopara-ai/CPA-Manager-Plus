@@ -3,7 +3,6 @@ import { create, type ReactTestRenderer } from 'react-test-renderer';
 import { describe, expect, it } from 'vitest';
 import { parse as parseYaml } from 'yaml';
 import { useVisualConfig } from './useVisualConfig';
-import { EMPTY_MINT_CONFIG } from '@/types/gatewayMintConfig';
 
 type UseVisualConfigResult = ReturnType<typeof useVisualConfig>;
 
@@ -919,38 +918,5 @@ describe('useVisualConfig', () => {
 
       harness.unmount();
     });
-  });
-});
-
-describe('gateway mint visual integration', () => {
-  it('tracks dirty nested controls, preserves YAML and supports returning to inheritance', () => {
-    const h = mountUseVisualConfig();
-    const yaml = 'codex:\n  turn-ticket:\n    models: [A]\n    future: keep\nproxy-url: direct\n';
-    act(() => {
-      h.getCurrent().loadVisualValuesFromYaml(yaml);
-    });
-    act(() => {
-      h.getCurrent().setVisualValues({
-        codexTurnTicket: {
-          ...h.getCurrent().visualValues.codexTurnTicket!,
-          enabled: 'true',
-          'mint-ticket-length': '0',
-        },
-      });
-    });
-    expect(h.getCurrent().visualDirty).toBe(true);
-    const saved = parseYaml(h.getCurrent().applyVisualChangesToYaml(yaml));
-    expect(saved.codex['turn-ticket']).toMatchObject({
-      enabled: true,
-      'mint-ticket-length': 0,
-      models: ['A'],
-      future: 'keep',
-    });
-    expect(saved['proxy-url']).toBe('direct');
-    act(() => {
-      h.getCurrent().setVisualValues({ codexTurnTicket: { ...EMPTY_MINT_CONFIG, models: 'A' } });
-    });
-    expect(h.getCurrent().visualDirty).toBe(false);
-    h.unmount();
   });
 });

@@ -40,7 +40,7 @@ describe('buildUsageDetailsFromAnalyticsEvents', () => {
         auth_provider_snapshot: 'codex',
         auth_project_id_snapshot: 'project-1',
         reasoning_effort: 'medium',
-        response_metadata: { codex_turn_state: { response_length: 292 } },
+
         input_tokens: 10,
         output_tokens: 5,
         cached_tokens: 0,
@@ -58,7 +58,7 @@ describe('buildUsageDetailsFromAnalyticsEvents', () => {
 
     const details = buildUsageDetailsFromAnalyticsEvents(events);
 
-      expect(details[0]).toMatchObject({
+    expect(details[0]).toMatchObject({
       __modelName: 'alias-model',
       __requestedModel: 'original-alias-model(max)',
       __resolvedModel: 'upstream-model',
@@ -69,7 +69,7 @@ describe('buildUsageDetailsFromAnalyticsEvents', () => {
       x_forwarded_for: '203.0.113.5, 198.51.100.8',
       user_agent: 'test-client/1.0',
       reasoning_effort: 'medium',
-      response_metadata: { codex_turn_state: { response_length: 292 } },
+
       latency_ms: 123,
       ttft_ms: 45,
       tokens: {
@@ -83,10 +83,11 @@ describe('buildUsageDetailsFromAnalyticsEvents', () => {
     });
   });
 
-  it('preserves request and response ticket observations through the adapter', () => {
+  it('preserves trace metadata through the adapter', () => {
     const events: MonitoringAnalyticsEventRow[] = [
       {
-        event_hash: 'event-ticket',
+        event_hash: 'event-trace',
+        response_metadata: { trace: { primary_trace_id: 'synthetic-trace' } },
         timestamp_ms: Date.UTC(2026, 4, 20, 1, 2, 3),
         model: 'gpt-5.4',
         endpoint: 'POST /v1/responses',
@@ -108,22 +109,11 @@ describe('buildUsageDetailsFromAnalyticsEvents', () => {
         total_tokens: 15,
         latency_ms: 100,
         failed: false,
-        response_metadata: {
-          codex_turn_state: {
-            request_length: 292,
-            request_source: 'cache',
-            response_length: 312,
-          },
-        },
       },
     ];
 
     const details = buildUsageDetailsFromAnalyticsEvents(events);
-    expect(details[0].response_metadata?.codex_turn_state).toEqual({
-      request_length: 292,
-      request_source: 'cache',
-      response_length: 312,
-    });
+    expect(details[0].response_metadata?.trace?.primary_trace_id).toBe('synthetic-trace');
   });
 
   it('maps request metadata fields including response_model, session_id, parent_session_id, access_token_sha256, generate, and stream', () => {
@@ -471,7 +461,11 @@ describe('buildAnalyticsFilters', () => {
       ],
     ]);
 
-    const filters = buildAnalyticsFilters({ account: 'account:legacy@example.com' }, authMetaMap, []);
+    const filters = buildAnalyticsFilters(
+      { account: 'account:legacy@example.com' },
+      authMetaMap,
+      []
+    );
 
     expect(filters.auth_indices).toEqual(['auth-1']);
   });

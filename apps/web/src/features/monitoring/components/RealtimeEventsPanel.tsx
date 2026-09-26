@@ -20,7 +20,7 @@ import {
 import { MonitoringPanel } from '@/features/monitoring/components/MonitoringPanel';
 import { formatPercent } from '@/features/monitoring/components/accountOverviewPresentation';
 import { buildRealtimeSourceDisplay } from '@/features/monitoring/realtimeSourceDisplay';
-import { resolveCodexTurnState } from '@/features/monitoring/model/codexTurnState';
+
 import type { MonitoringEventRow } from '@/features/monitoring/hooks/useMonitoringData';
 import type { AccountDisplayMode } from '@/features/monitoring/accountOverviewState';
 import { useNotificationStore } from '@/stores';
@@ -1151,13 +1151,7 @@ export function RealtimeEventsPanel({
               const requestServiceTier = formatOptionalText(row.requestServiceTier);
               const responseServiceTier = formatOptionalText(row.responseServiceTier);
               const translatedServiceTier = formatOptionalText(row.effectiveServiceTier);
-              const turnState = resolveCodexTurnState(row.responseMetadata?.codex_turn_state);
-              const showTurnState =
-                turnState.requestState !== 'unknown' ||
-                turnState.responseLength !== null ||
-                [row.provider, row.providerIdentity, row.executorType].some((value) =>
-                  value?.toLowerCase().includes('codex')
-                );
+
               const displayServiceTier =
                 serviceTier !== '-'
                   ? serviceTier
@@ -1253,48 +1247,6 @@ export function RealtimeEventsPanel({
                           {displayServiceTier}
                         </span>
                       </span>
-                      {showTurnState ? (
-                        <span className={styles.realtimeSettingLine}>
-                          <span className={styles.realtimeSettingLabel}>
-                            {t('monitoring.codex_turn_state_label')}
-                          </span>
-                          <span
-                            className={`${styles.realtimeSettingValue} ${styles.realtimeTurnStateValue}`}
-                            title={
-                              turnState.responseLength === null
-                                ? t('monitoring.codex_turn_state_unknown')
-                                : undefined
-                            }
-                            data-codex-turn-state-response-status={
-                              turnState.responseLength === null ? 'unobserved' : 'observed'
-                            }
-                          >
-                            {turnState.responseLength !== null ? (
-                              <span
-                                className={styles.realtimeTurnStateResponse}
-                                title={t('monitoring.codex_turn_state_response_hint', {
-                                  length: turnState.responseLength,
-                                  defaultValue: `Observed response ticket length: ${turnState.responseLength} bytes. This does not confirm injection.`,
-                                })}
-                                data-codex-turn-state-response-length={turnState.responseLength}
-                              >
-                                <span className={styles.realtimeTurnStatePrefix}>
-                                  {t('monitoring.codex_turn_state_response')}
-                                </span>
-                                <span
-                                  className={[styles.realtimeTurnStateNumber]
-                                    .filter(Boolean)
-                                    .join(' ')}
-                                >
-                                  {turnState.responseLength}
-                                </span>
-                              </span>
-                            ) : (
-                              <span className={styles.realtimeTurnStateText}>—</span>
-                            )}
-                          </span>
-                        </span>
-                      ) : null}
                     </div>
                   </td>
                   <td className={styles.realtimeCenteredColumn}>

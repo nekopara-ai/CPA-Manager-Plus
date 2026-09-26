@@ -1,3 +1,4 @@
+import type { FingerprintPolicy } from '@/types/fingerprint';
 /**
  * 认证文件与 OAuth 排除模型相关 API
  */
@@ -47,7 +48,8 @@ type AuthFileModelApiItem = {
   owned_by?: string;
 };
 export type AuthFileFieldsPatch = {
-  codex_turn_ticket_plan?: string | null;
+  timezone_override?: string | null;
+  fingerprint?: FingerprintPolicy | null;
   expired?: string;
   last_refresh?: string;
   prefix?: string;

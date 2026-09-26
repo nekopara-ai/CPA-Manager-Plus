@@ -9007,8 +9007,12 @@ describe('AccountsPage replacement flows', () => {
     expect(quotaText).not.toContain('accounts.detail_snapshot_window_weekly');
 
     const windows = quotaTab.props.detailView.quota.windows;
-    expect(windows.find((w: { providerWindowId: string }) => w.providerWindowId === 'meta:window')?.label).toBe('meta_quota.window');
-    expect(windows.find((w: { providerWindowId: string }) => w.providerWindowId === 'meta:weekly')?.label).toBe('meta_quota.weekly');
+    expect(
+      windows.find((w: { providerWindowId: string }) => w.providerWindowId === 'meta:window')?.label
+    ).toBe('meta_quota.window');
+    expect(
+      windows.find((w: { providerWindowId: string }) => w.providerWindowId === 'meta:weekly')?.label
+    ).toBe('meta_quota.weekly');
   });
 
   it('renders live Meta quota window and weekly in accounts list', async () => {
@@ -9737,190 +9741,6 @@ describe('AccountsPage replacement flows', () => {
     expect(findHostButtonByText(renderer, 'accounts.view_mode_grid')).toBeDefined();
   });
 
-  it('renders the eight localized credential list headers', async () => {
-    const renderer = await renderAccountsPage();
-    const header = renderer.root.findByProps({ 'data-account-list-header': 'true' });
-
-    expect(header.findAllByType('span').map((node) => readText(node))).toEqual([
-      'accounts.list_header_credential',
-      'accounts.list_header_plan',
-      'accounts.list_header_availability',
-      'accounts.list_header_turn_ticket',
-      'accounts.list_header_recent_requests',
-      'accounts.list_header_historical_usage',
-      'accounts.list_header_quota',
-      'accounts.list_header_actions',
-    ]);
-
-    expect(renderer.root.findAllByProps({ 'data-account-quota-empty': 'true' })).toHaveLength(1);
-    expect(treeText(renderer)).toContain('accounts.quota_source_none');
-    expect(treeText(renderer)).not.toContain('accounts.quota_details_only');
-    expect(treeText(renderer)).not.toContain('SUM');
-  });
-
-  it('renders credential-scoped 292 health and opens its per-model detail', async () => {
-    mocks.files = [
-      {
-        ...makeCodexFile('ticket-ready.json', 'auth-ticket', 'ticket@example.com'),
-        codex_turn_ticket: {
-          configured: true,
-          enabled: true,
-          harvester_active: true,
-          target_length: 292,
-          state: 'healthy',
-          healthy_models: 1,
-          total_models: 1,
-          earliest_expires_at: '2026-09-20T02:00:00Z',
-          models: [
-            {
-              model: 'gpt-5.6-sol',
-              ticket_state: 'healthy',
-              ticket_length: 292,
-              expires_at: '2026-09-20T02:00:00Z',
-              last_observed_at: '2026-09-19T23:00:00Z',
-              last_http_status: 200,
-              last_observed_length: 292,
-              last_observed_healthy: true,
-              last_result: 'healthy_ticket',
-            },
-          ],
-        },
-      },
-    ];
-
-    const renderer = await renderAccountsPage();
-    const ticketStatus = renderer.root.findByProps({ 'data-turn-ticket-state': 'healthy' });
-    expect(ticketStatus.type).toBe('button');
-    expect(readText(ticketStatus)).toContain('accounts.turn_ticket_state_ready');
-
-    await act(async () => {
-      ticketStatus.props.onClick({ stopPropagation: vi.fn() });
-      await Promise.resolve();
-    });
-
-    const ticketDetail = renderer.root.findByProps({ 'data-overview-section': 'turn-ticket' });
-    expect(ticketDetail.findByProps({ 'data-turn-ticket-model': 'gpt-5.6-sol' })).toBeTruthy();
-    expect(ticketDetail.findByProps({ 'data-turn-ticket-model-state': 'healthy' })).toBeTruthy();
-    expect(readText(ticketDetail)).toContain('healthy_ticket');
-  });
-
-  it('surfaces adaptive routing cookies and probe state from the CPA .145 snapshot', async () => {
-    mocks.files = [
-      {
-        ...makeCodexFile('adaptive.json', 'auth-adaptive', 'adaptive@example.com'),
-        codex_turn_ticket: {
-          configured: true,
-          enabled: true,
-          injection_enabled: true,
-          adaptive_injection: true,
-          harvester_active: true,
-          target_length: 780,
-          degraded_length: 312,
-          block_on_degraded: true,
-          state: 'healthy',
-          healthy_models: 2,
-          total_models: 2,
-          earliest_expires_at: '2026-09-23T05:04:00Z',
-          models: [
-            {
-              model: 'gpt-5.6-sol',
-              ticket_state: 'direct',
-              routing_mode: 'direct',
-              last_observed_at: '2026-09-23T05:00:00Z',
-              last_observed_length: 780,
-              last_observed_healthy: true,
-            },
-            {
-              model: 'gpt-6-astra',
-              ticket_state: 'healthy',
-              routing_mode: 'inject',
-              routing_cookie_names: ['__Secure-next-auth.session-token', 'oai-did'],
-              routing_validated_at: '2026-09-23T04:59:00Z',
-              routing_expires_at: '2026-09-23T05:04:00Z',
-              ticket_length: 780,
-              expires_at: '2026-09-23T05:04:00Z',
-              probe_attempts: 4,
-              last_probe_complete: true,
-              last_probe_model_match: true,
-            },
-          ],
-        },
-      },
-    ];
-
-    const renderer = await renderAccountsPage();
-    const ticketStatus = renderer.root.findByProps({ 'data-turn-ticket-state': 'healthy' });
-
-    await act(async () => {
-      ticketStatus.props.onClick({ stopPropagation: vi.fn() });
-      await Promise.resolve();
-    });
-
-    const ticketDetail = renderer.root.findByProps({ 'data-overview-section': 'turn-ticket' });
-    expect(ticketDetail.findByProps({ 'data-turn-ticket-model': 'gpt-5.6-sol' })).toBeTruthy();
-    expect(ticketDetail.findByProps({ 'data-turn-ticket-model-state': 'direct' })).toBeTruthy();
-    expect(ticketDetail.findByProps({ 'data-turn-ticket-model-state': 'healthy' })).toBeTruthy();
-    const detailText = readText(ticketDetail);
-    expect(detailText).toContain('__Secure-next-auth.session-token');
-    expect(detailText).toContain('oai-did');
-    expect(detailText).toContain('accounts.detail_turn_ticket_routing_mode');
-    expect(detailText).toContain('accounts.detail_turn_ticket_degraded_length');
-    expect(detailText).toContain('accounts.detail_turn_ticket_block_on_degraded');
-    expect(detailText).toContain('accounts.detail_turn_ticket_probe_attempts');
-  });
-
-  it('reports a globally disabled ticket feature as disabled, not as unavailable', async () => {
-    mocks.files = [
-      {
-        ...makeCodexFile('disabled.json', 'auth-disabled', 'disabled@example.com'),
-        codex_turn_ticket: {
-          configured: true,
-          enabled: false,
-          injection_enabled: false,
-          adaptive_injection: true,
-          harvester_active: true,
-          target_length: 780,
-          degraded_length: 312,
-          block_on_degraded: false,
-          state: 'disabled',
-          healthy_models: 0,
-          total_models: 0,
-        },
-      },
-    ];
-
-    const renderer = await renderAccountsPage();
-    const ticketStatus = renderer.root.findByProps({ 'data-turn-ticket-state': 'disabled' });
-    expect(readText(ticketStatus)).toContain('accounts.turn_ticket_state_disabled');
-    expect(ticketStatus.props.title).not.toContain('accounts.turn_ticket_injection_active');
-  });
-
-  it('keeps an unclassified adaptive route out of the unavailable bucket', async () => {
-    mocks.files = [
-      {
-        ...makeCodexFile('unclassified.json', 'auth-unclassified', 'unclassified@example.com'),
-        codex_turn_ticket: {
-          configured: true,
-          enabled: true,
-          injection_enabled: true,
-          adaptive_injection: true,
-          harvester_active: true,
-          target_length: 780,
-          degraded_length: 312,
-          state: 'unclassified',
-          healthy_models: 0,
-          total_models: 1,
-          models: [{ model: 'gpt-5.6-sol', ticket_state: 'unclassified' }],
-        },
-      },
-    ];
-
-    const renderer = await renderAccountsPage();
-    const ticketStatus = renderer.root.findByProps({ 'data-turn-ticket-state': 'unclassified' });
-    expect(readText(ticketStatus)).toContain('accounts.turn_ticket_state_unclassified');
-    expect(ticketStatus.props.title).not.toContain('accounts.turn_ticket_state_unavailable');
-  });
-
   it('renders historical usage alongside the quota trigger', async () => {
     const file = mocks.files[0];
     const selectionKey = getAuthFileSelectionKey(file);
@@ -10474,63 +10294,6 @@ describe('AccountsPage replacement flows', () => {
       findDetailButtonByName(renderer, 'codex.json').props.onClick();
     });
     expect(treeText(renderer)).toContain('accounts.detail_tab_overview');
-  });
-
-  it('renders a decision-first overview', async () => {
-    const renderer = await renderAccountsPage();
-
-    await act(async () => {
-      findDetailButtonByName(renderer, 'codex.json').props.onClick();
-    });
-    await flushPromises();
-
-    expect(renderer.root.findAllByProps({ 'data-overview-section': 'decision' })).toHaveLength(1);
-    const overviewSectionNames = renderer.root
-      .findAll((node) => typeof node.props['data-overview-section'] === 'string')
-      .map((node) => node.props['data-overview-section']);
-    expect(overviewSectionNames).toEqual([
-      'decision',
-      'recent-status',
-      'capacity',
-      'credential',
-      'turn-ticket',
-      'activity',
-    ]);
-    expect(renderer.root.findAllByProps({ 'data-overview-section': 'recent-status' })).toHaveLength(
-      1
-    );
-    expect(renderer.root.findAllByProps({ 'data-overview-section': 'capacity' })).toHaveLength(1);
-    expect(renderer.root.findAllByProps({ 'data-overview-section': 'credential' })).toHaveLength(1);
-    expect(renderer.root.findAllByProps({ 'data-overview-section': 'activity' })).toHaveLength(1);
-    expect(renderer.root.findAllByProps({ 'data-overview-section': 'attention' })).toHaveLength(0);
-    const recentStatusSection = renderer.root.findByProps({
-      'data-overview-section': 'recent-status',
-    });
-    expect(recentStatusSection.props['data-overview-recent-status-empty']).toBe(true);
-    expect(
-      recentStatusSection.findAllByProps({ 'data-overview-recent-status-empty-message': 'true' })
-    ).toHaveLength(1);
-    const recentStatusBar = recentStatusSection.findByType(ProviderStatusBar);
-    expect(recentStatusBar.props.statusData.blockDetails).toHaveLength(20);
-    expect(recentStatusBar.props.statusData.totalSuccess).toBe(0);
-    expect(recentStatusBar.props.statusData.totalFailure).toBe(0);
-    expect(
-      renderer.root.findAllByProps({ 'data-overview-activity-scope': 'recent_snapshot' })
-    ).toHaveLength(1);
-    const overviewText = treeText(renderer);
-    expect(overviewText).toContain('accounts.detail_overview_decision_title');
-    expect(overviewText).toContain('accounts.detail_overview_capacity_title');
-    expect(overviewText).toContain('accounts.detail_overview_credential_title');
-    expect(overviewText).toContain('accounts.detail_overview_activity_title');
-    expect(overviewText).toContain('accounts.detail_overview_activity_scope_recent');
-    [
-      'accounts.detail_overview_decision_eyebrow',
-      'accounts.detail_overview_capacity_eyebrow',
-      'accounts.detail_overview_credential_eyebrow',
-      'accounts.detail_overview_credential_desc',
-      'accounts.detail_overview_activity_eyebrow',
-      'accounts.detail_overview_activity_source',
-    ].forEach((key) => expect(overviewText).not.toContain(key));
   });
 
   it('aggregates recent request buckets and shows the current status explanation', async () => {
@@ -18760,7 +18523,9 @@ describe('AccountsPage replacement flows', () => {
     it('calls full detail refresh on single row refresh for Codex', async () => {
       const file = makeCodexFile('codex-row-summary.json', 'auth-detail-1', 'detail@example.com');
       mocks.files = [file];
-      const detailSpy = vi.spyOn(CODEX_CONFIG, 'fetchQuota').mockResolvedValue(makeCodexQuotaData());
+      const detailSpy = vi
+        .spyOn(CODEX_CONFIG, 'fetchQuota')
+        .mockResolvedValue(makeCodexQuotaData());
       const summarySpy = vi.spyOn(CODEX_SUMMARY_CONFIG, 'fetchQuota');
 
       const renderer = await renderAccountsPage();
@@ -18848,9 +18613,14 @@ describe('AccountsPage replacement flows', () => {
         runtimeOnly: false,
       };
       mocks.files = [fileCodex, fileMeta];
-      mocks.selectedFiles = new Set([getAuthFileSelectionKey(fileCodex), getAuthFileSelectionKey(fileMeta)]);
+      mocks.selectedFiles = new Set([
+        getAuthFileSelectionKey(fileCodex),
+        getAuthFileSelectionKey(fileMeta),
+      ]);
 
-      const summarySpy = vi.spyOn(CODEX_SUMMARY_CONFIG, 'fetchQuota').mockResolvedValue(makeCodexQuotaData());
+      const summarySpy = vi
+        .spyOn(CODEX_SUMMARY_CONFIG, 'fetchQuota')
+        .mockResolvedValue(makeCodexQuotaData());
       const metaSpy = vi.spyOn(META_CONFIG, 'fetchQuota').mockResolvedValue(makeMetaQuotaData());
       const showNotificationSpy = mocks.showNotification;
 
@@ -18895,7 +18665,9 @@ describe('AccountsPage replacement flows', () => {
 
       const rowButtons = renderer.root.findAllByType(Button);
       const rowRefreshButton = rowButtons.find(
-        (b) => typeof b.props.className === 'string' && b.props.className.includes('accountIconButtonRefresh')
+        (b) =>
+          typeof b.props.className === 'string' &&
+          b.props.className.includes('accountIconButtonRefresh')
       );
       expect(rowRefreshButton).toBeDefined();
 
@@ -18907,7 +18679,9 @@ describe('AccountsPage replacement flows', () => {
       expect(metaSpy).toHaveBeenCalledTimes(1);
 
       const detailButton = rowButtons.find(
-        (b) => b.props.title === 'accounts.open_detail' || b.props['aria-label'] === 'accounts.open_detail'
+        (b) =>
+          b.props.title === 'accounts.open_detail' ||
+          b.props['aria-label'] === 'accounts.open_detail'
       );
       if (detailButton) {
         await act(async () => {
@@ -18939,7 +18713,9 @@ describe('AccountsPage replacement flows', () => {
 
       const rowButtons = renderer.root.findAllByType(Button);
       const rowRefreshButton = rowButtons.find(
-        (b) => typeof b.props.className === 'string' && b.props.className.includes('accountIconButtonRefresh')
+        (b) =>
+          typeof b.props.className === 'string' &&
+          b.props.className.includes('accountIconButtonRefresh')
       );
       expect(rowRefreshButton).toBeUndefined();
     });
@@ -19117,7 +18893,8 @@ describe('AccountsPage replacement flows', () => {
           ([message, type]) =>
             type === 'error' &&
             typeof message === 'string' &&
-            (message.includes('reset_verify_failed') || message.includes('reset_credits_invalid_payload'))
+            (message.includes('reset_verify_failed') ||
+              message.includes('reset_credits_invalid_payload'))
         )
       ).toBe(false);
     });
@@ -19176,7 +18953,9 @@ describe('AccountsPage replacement flows', () => {
         message: string;
         confirmText: string;
       };
-      expect(confirmationArgs.message).toBe('codex_quota.reset_confirm_message:inferred@example.com:1');
+      expect(confirmationArgs.message).toBe(
+        'codex_quota.reset_confirm_message:inferred@example.com:1'
+      );
       expect(confirmationArgs.confirmText).toBe('codex_quota.reset_button:1');
       const committed = applyCodexQuotaCommits();
       expect(committed[storeKey]?.rateLimitResetCreditsAvailableCount).toBe(1);
@@ -19239,7 +19018,9 @@ describe('AccountsPage replacement flows', () => {
         message: string;
         confirmText: string;
       };
-      expect(confirmationArgs.message).toBe('codex_quota.reset_confirm_message:explicit@example.com:5');
+      expect(confirmationArgs.message).toBe(
+        'codex_quota.reset_confirm_message:explicit@example.com:5'
+      );
       expect(confirmationArgs.confirmText).toBe('codex_quota.reset_button:5');
       const committed = applyCodexQuotaCommits();
       expect(committed[storeKey]?.rateLimitResetCreditsAvailableCount).toBe(5);
@@ -19247,7 +19028,11 @@ describe('AccountsPage replacement flows', () => {
     });
 
     it('authoritatively clears conflicting detail records to empty when live verification returns available_count=0 with credits', async () => {
-      const file = makeCodexFile('codex-zero-with-credits.json', 'auth-zwc-1', 'zero-credits@example.com');
+      const file = makeCodexFile(
+        'codex-zero-with-credits.json',
+        'auth-zwc-1',
+        'zero-credits@example.com'
+      );
       mocks.files = [file];
       const storeKey = CODEX_CONFIG.getStoreKey?.(file) ?? file.name;
       const initialDetailEvidence = Date.now() - 60_000;
@@ -19303,9 +19088,15 @@ describe('AccountsPage replacement flows', () => {
       const committed = applyCodexQuotaCommits();
       expect(committed[storeKey]?.rateLimitResetCreditsAvailableCount).toBe(0);
       expect(committed[storeKey]?.rateLimitResetCredits).toEqual([]);
-      expect(committed[storeKey]?.resetCreditsCountEvidenceAtMs).toBeGreaterThan(initialDetailEvidence);
-      expect(committed[storeKey]?.resetCreditsDetailEvidenceAtMs).toBeGreaterThan(initialDetailEvidence);
-      expect(committed[storeKey]?.resetCreditsCountEvidenceAtMs).toBe(committed[storeKey]?.resetCreditsDetailEvidenceAtMs);
+      expect(committed[storeKey]?.resetCreditsCountEvidenceAtMs).toBeGreaterThan(
+        initialDetailEvidence
+      );
+      expect(committed[storeKey]?.resetCreditsDetailEvidenceAtMs).toBeGreaterThan(
+        initialDetailEvidence
+      );
+      expect(committed[storeKey]?.resetCreditsCountEvidenceAtMs).toBe(
+        committed[storeKey]?.resetCreditsDetailEvidenceAtMs
+      );
       expect(committed[storeKey]?.resetCreditsDetailStale).toBe(false);
       expect(mocks.showNotification).toHaveBeenCalledWith(
         'codex_quota.reset_no_credits:zero-credits@example.com',
@@ -19316,13 +19107,18 @@ describe('AccountsPage replacement flows', () => {
           ([message, type]) =>
             type === 'error' &&
             typeof message === 'string' &&
-            (message.includes('reset_verify_failed') || message.includes('reset_credits_invalid_payload'))
+            (message.includes('reset_verify_failed') ||
+              message.includes('reset_credits_invalid_payload'))
         )
       ).toBe(false);
     });
 
     it('Test 11: live verification succeeds on count-only payload and preserves existing trusted details when count is unchanged', async () => {
-      const file = makeCodexFile('codex-live-count-only.json', 'auth-lco-1', 'livecount@example.com');
+      const file = makeCodexFile(
+        'codex-live-count-only.json',
+        'auth-lco-1',
+        'livecount@example.com'
+      );
       mocks.files = [file];
       const storeKey = CODEX_CONFIG.getStoreKey?.(file) ?? file.name;
       const initialDetailEvidence = 10_000;
@@ -19372,7 +19168,9 @@ describe('AccountsPage replacement flows', () => {
         message: string;
         confirmText: string;
       };
-      expect(confirmationArgs.message).toBe('codex_quota.reset_confirm_message:livecount@example.com:1');
+      expect(confirmationArgs.message).toBe(
+        'codex_quota.reset_confirm_message:livecount@example.com:1'
+      );
       expect(confirmationArgs.confirmText).toBe('codex_quota.reset_button:1');
       const committed = applyCodexQuotaCommits();
       expect(committed[storeKey]?.rateLimitResetCreditsAvailableCount).toBe(1);
@@ -19431,17 +19229,26 @@ describe('AccountsPage replacement flows', () => {
       expect(mocks.consumeResetCredit).not.toHaveBeenCalled();
       expect(
         mocks.showNotification.mock.calls.some(
-          ([message, type]) => type === 'error' && typeof message === 'string' && message.includes('reset_verify_failed')
+          ([message, type]) =>
+            type === 'error' &&
+            typeof message === 'string' &&
+            message.includes('reset_verify_failed')
         )
       ).toBe(true);
-      const preservedState = (mocks.quotaState.codexQuota as Record<string, CodexQuotaState>)[storeKey];
+      const preservedState = (mocks.quotaState.codexQuota as Record<string, CodexQuotaState>)[
+        storeKey
+      ];
       expect(preservedState?.rateLimitResetCreditsAvailableCount).toBe(1);
       expect(preservedState?.rateLimitResetCredits).toEqual([creditA]);
     });
 
     it('does not loop auto-fetch when detail endpoint returns count-only response and allows manual anchor retry', async () => {
       mocks.location = { pathname: '/accounts', search: '?layout=grid' };
-      const file = makeCodexFile('codex-autofetch-countonly.json', 'auth-af-1', 'autofetch@example.com');
+      const file = makeCodexFile(
+        'codex-autofetch-countonly.json',
+        'auth-af-1',
+        'autofetch@example.com'
+      );
       mocks.files = [file];
       const storeKey = CODEX_CONFIG.getStoreKey?.(file) ?? file.name;
       mocks.quotaState.codexQuota = {
@@ -19494,8 +19301,9 @@ describe('AccountsPage replacement flows', () => {
       expect(committed[storeKey]?.resetCreditsDetailEvidenceAtMs).toBeNull();
       expect(committed[storeKey]?.rateLimitResetCredits).toEqual([]);
 
-      const anchorButtons = renderer.root
-        .findAll((node) => node.props['data-detail-anchor'] === 'reset-records');
+      const anchorButtons = renderer.root.findAll(
+        (node) => node.props['data-detail-anchor'] === 'reset-records'
+      );
       expect(anchorButtons).toHaveLength(1);
 
       await act(async () => {

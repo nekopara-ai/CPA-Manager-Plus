@@ -58,12 +58,12 @@ import {
 } from '@/utils/plans';
 import { buildAccountSubscriptionPresentation } from './accountSubscriptionPresentation';
 import {
-  accountTurnTicketMatchesFilter,
-  isAccountTurnTicketReady,
-  resolveAccountTurnTicket,
-  type AccountTurnTicketFilter,
-  type AccountTurnTicketSummary,
-} from './accountTurnTicket';
+  accountFingerprintMatchesFilter,
+  isAccountFingerprintReady,
+  resolveAccountFingerprint,
+  type AccountFingerprintFilter,
+  type AccountFingerprintSummary,
+} from './accountFingerprint';
 
 export {
   compareQuotaResetLabels,
@@ -207,7 +207,7 @@ export interface AccountRow {
   quota: AccountQuotaSummary;
   usage: AccountUsageSummary;
   inspection: AccountInspectionSummary | null;
-  turnTicket?: AccountTurnTicketSummary;
+  fingerprint?: AccountFingerprintSummary;
   raw: AuthFileItem;
 }
 
@@ -228,7 +228,7 @@ export interface AccountMetrics {
   disabled: number;
   unconfirmed: number;
   needsInspectionAction: number;
-  ticketReady: number;
+  fingerprintReady: number;
 }
 
 export interface AccountMetricOperationalContext {
@@ -242,7 +242,7 @@ export interface AccountRowFilters extends AccountMetricOperationalContext {
   status: AccountStatusFilter;
   plan: string;
   quotaBand: AccountQuotaBand;
-  turnTicket?: AccountTurnTicketFilter;
+  fingerprint?: AccountFingerprintFilter;
   search: string;
   codexStatusBySelectionKey?: ReadonlyMap<string, AuthFileCodexStatusSummary>;
 }
@@ -545,7 +545,7 @@ export const buildAccountRows = (
       quota,
       usage: buildUsageSummary(file),
       inspection,
-      turnTicket: resolveAccountTurnTicket(file, provider),
+      fingerprint: resolveAccountFingerprint(file, provider),
       raw: file,
     };
   });
@@ -636,6 +636,7 @@ const needsAccountAttention = (
     ? requestEvidence
     : null;
   return Boolean(
+    row.fingerprint?.state === 'blocked' ||
     resolveAccountAuthenticationProblemEvidence(row, requestEvidence) ||
     isAccountQuotaRefreshProblemCurrent(row, requestEvidence) ||
     (isAccountObservedDiagnosticProblemCurrent(row, requestEvidence) &&
@@ -692,12 +693,12 @@ export const buildAccountMetrics = (
     disabled: 0,
     unconfirmed: 0,
     needsInspectionAction: 0,
-    ticketReady: 0,
+    fingerprintReady: 0,
   };
 
   rows.forEach((row) => {
-    if (row.provider === 'codex' && isAccountTurnTicketReady(row.turnTicket)) {
-      metrics.ticketReady += 1;
+    if (row.provider === 'codex' && isAccountFingerprintReady(row.fingerprint)) {
+      metrics.fingerprintReady += 1;
     }
     const status = classifyAccountMetricStatus(row, context);
     metrics[status] += 1;
@@ -761,7 +762,7 @@ export const filterAccountRows = (rows: AccountRow[], filters: AccountRowFilters
       return false;
     }
     if (!matchesQuotaBand(row, filters.quotaBand)) return false;
-    if (!accountTurnTicketMatchesFilter(row.turnTicket, filters.turnTicket)) return false;
+    if (!accountFingerprintMatchesFilter(row.fingerprint, filters.fingerprint)) return false;
     if (!search) return true;
     const values = [
       row.accountLabel,

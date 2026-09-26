@@ -90,12 +90,6 @@ export interface UsageResponseHeaderQuotaWindow {
 }
 
 export interface UsageResponseHeaderMetadata {
-  codex_turn_state?: {
-    request_length?: number;
-    request_source?: 'cache' | 'passthrough' | 'none';
-    request_scope?: 'websocket_handshake';
-    response_length?: number;
-  };
   quota?: {
     plan_type?: string;
     active_limit?: string;
@@ -582,7 +576,8 @@ export const inferCacheInputMode = (
   const normalizedMode = normalizeCacheIdentity(context.explicitMode);
   if (normalizedMode === 'separate_from_input') return 'separate_from_input';
   if (normalizedMode === 'included_in_input') return 'included_in_input';
-  if (normalizedMode === 'read_included_creation_separate') return 'read_included_creation_separate';
+  if (normalizedMode === 'read_included_creation_separate')
+    return 'read_included_creation_separate';
   const executorMode = classifyExecutorCacheInputMode(context.executorType);
   if (executorMode) return executorMode;
   for (const provider of [context.provider, context.providerSnapshot]) {
@@ -1164,8 +1159,14 @@ export function collectUsageDetailsWithEndpoint(usageData: unknown): UsageDetail
           fail_body: readDetailString(detailRaw.fail_body ?? detailRaw.failBody ?? failRaw.body),
           response_model: readDetailString(detailRaw.response_model ?? detailRaw.responseModel),
           session_id: readDetailString(detailRaw.session_id ?? detailRaw.sessionId),
-          parent_session_id: readDetailString(detailRaw.parent_session_id ?? detailRaw.parentSessionId),
-          access_token_sha256: readDetailString(detailRaw.access_token_sha256 ?? detailRaw.accessTokenSHA256 ?? detailRaw.accessTokenSha256),
+          parent_session_id: readDetailString(
+            detailRaw.parent_session_id ?? detailRaw.parentSessionId
+          ),
+          access_token_sha256: readDetailString(
+            detailRaw.access_token_sha256 ??
+              detailRaw.accessTokenSHA256 ??
+              detailRaw.accessTokenSha256
+          ),
           generate: typeof detailRaw.generate === 'boolean' ? detailRaw.generate : undefined,
           stream: typeof detailRaw.stream === 'boolean' ? detailRaw.stream : undefined,
           __modelName: analyticsModel,
@@ -1264,8 +1265,7 @@ export function resolveBillingServiceTier(detail: ServiceTierDetail): string | u
       return effectiveTier;
     }
     const outboundTierKnown =
-      detail.effective_service_tier !== undefined ||
-      detail.effectiveServiceTier !== undefined;
+      detail.effective_service_tier !== undefined || detail.effectiveServiceTier !== undefined;
     return firstServiceTier(
       outboundTierKnown ? 'default' : undefined,
       detail.service_tier,

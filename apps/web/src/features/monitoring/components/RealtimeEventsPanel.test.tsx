@@ -78,26 +78,7 @@ const t = ((key: string, options?: Record<string, unknown>) => {
     'monitoring.service_tier_short': 'Tier',
     'monitoring.request_service_tier_short': 'Requested tier',
     'monitoring.response_service_tier_short': 'Reported tier',
-    'monitoring.codex_turn_state_label': 'Ticket',
-    'monitoring.codex_turn_state_injected': 'Injected',
-    'monitoring.codex_turn_state_passthrough': 'Passthrough',
-    'monitoring.codex_turn_state_none': 'Not carried',
-    'monitoring.codex_turn_state_response': 'Response',
-    'monitoring.codex_turn_state_injected_hint':
-      'Injected a {{length}}-byte ticket from the local cache',
-    'monitoring.codex_turn_state_passthrough_hint': 'Passed through a {{length}}-byte ticket',
-    'monitoring.codex_turn_state_none_hint': 'No ticket was attached',
-    'monitoring.codex_turn_state_ws_injected': 'Connection injected',
-    'monitoring.codex_turn_state_ws_passthrough': 'Connection passthrough',
-    'monitoring.codex_turn_state_ws_none': 'Connection not carried',
-    'monitoring.codex_turn_state_ws_injected_hint':
-      'Injected during the WebSocket handshake; reused connections keep that handshake',
-    'monitoring.codex_turn_state_ws_passthrough_hint':
-      'Passthrough during the WebSocket handshake; reused connections keep that handshake',
-    'monitoring.codex_turn_state_ws_none_hint':
-      'No ticket during the WebSocket handshake; reused connections keep that handshake',
-    'monitoring.codex_turn_state_response_hint': 'Response ticket length: {{length}} bytes',
-    'monitoring.codex_turn_state_unknown': 'Response ticket length not observed',
+
     'monitoring.service_tier_breakdown':
       'Requested {{request}} · Translated {{effective}} · Reported {{response}}',
     'monitoring.this_call_cost': 'Cost',
@@ -225,85 +206,6 @@ const renderPanel = (row: PanelRow, overrides: PanelOverrides = {}) =>
   );
 
 describe('RealtimeEventsPanel', () => {
-  it.each([292, 312, 332, 356, 428, 780])(
-    'shows only the observed response ticket length %i',
-    (length) => {
-      const markup = renderPanel(
-        baseRow({
-          provider: 'codex',
-          responseMetadata: {
-            codex_turn_state: {
-              request_length: 292,
-              request_source: 'cache',
-              response_length: length,
-            },
-          },
-        })
-      );
-      expect(markup).toContain(`data-codex-turn-state-response-length="${length}"`);
-      expect(markup).toContain(`Response ticket length: ${length} bytes`);
-      expect(markup).not.toContain('data-codex-turn-state-request');
-      expect(markup).not.toContain('Injected');
-      expect(markup.includes(styles.realtimeTurnStateHealthy)).toBe(false);
-      expect(markup.includes(styles.realtimeTurnStateDegraded)).toBe(false);
-    }
-  );
-
-  it.each(['cache', 'passthrough', 'none'] as const)(
-    'does not substitute a %s request observation for a missing response',
-    (source) => {
-      for (const scope of [undefined, 'websocket_handshake'] as const) {
-        const markup = renderPanel(
-          baseRow({
-            provider: 'codex',
-            responseMetadata: {
-              codex_turn_state: {
-                request_length: source === 'none' ? 0 : 292,
-                request_source: source,
-                request_scope: scope,
-              },
-            },
-          })
-        );
-        expect(markup).toContain('data-codex-turn-state-response-status="unobserved"');
-        expect(markup).toContain('Response ticket length not observed');
-        expect(markup).not.toContain('data-codex-turn-state-response-length');
-        expect(markup).not.toContain('data-codex-turn-state-request');
-        expect(markup).not.toContain('>292</span>');
-        expect(markup).not.toContain('Injected');
-        expect(markup).not.toContain('Passthrough');
-      }
-    }
-  );
-
-  it('preserves historical response-only observations', () => {
-    const markup = renderPanel(
-      baseRow({
-        responseMetadata: { codex_turn_state: { response_length: 312 } },
-      })
-    );
-    expect(markup).toContain('data-codex-turn-state-response-length="312"');
-    expect(markup).not.toContain('data-codex-turn-state-request');
-  });
-
-  it('distinguishes an unobserved Codex response from unsupported providers', () => {
-    expect(renderPanel(baseRow({ provider: 'codex' }))).toContain(
-      'data-codex-turn-state-response-status="unobserved"'
-    );
-    expect(renderPanel(baseRow())).not.toContain('data-codex-turn-state-response-status');
-  });
-
-  it.each([0, -1, 2.5, Number.NaN])('does not display invalid response length %s', (length) => {
-    const markup = renderPanel(
-      baseRow({
-        executorType: 'CodexExecutor',
-        responseMetadata: { codex_turn_state: { response_length: length } },
-      })
-    );
-    expect(markup).toContain('data-codex-turn-state-response-status="unobserved"');
-    expect(markup).not.toContain('data-codex-turn-state-response-length');
-  });
-
   const expectedDate = new Date(baseRow().timestampMs).toLocaleDateString('en-US', {
     year: 'numeric',
     month: '2-digit',

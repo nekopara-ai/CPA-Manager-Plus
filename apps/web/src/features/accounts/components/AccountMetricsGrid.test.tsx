@@ -16,7 +16,7 @@ describe('AccountMetricsGrid', () => {
           metrics={{
             total: 12,
             available: 6,
-            ticketReady: 4,
+            fingerprintReady: 4,
             needsAttention: 2,
             quotaRisk: 1,
             disabled: 2,
@@ -33,7 +33,7 @@ describe('AccountMetricsGrid', () => {
     expect(cards.map((card) => card.props['data-summary-icon'])).toEqual([
       'credential',
       'available',
-      'ticket',
+      'fingerprint',
       'attention',
       'quota-risk',
       'disabled',

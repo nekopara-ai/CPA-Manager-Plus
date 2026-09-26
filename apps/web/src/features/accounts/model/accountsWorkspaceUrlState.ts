@@ -2,7 +2,7 @@ import type { DetailTab, AccountsView } from './accountsPagePresentation';
 import type { AccountsWorkspaceUiState } from './accountsWorkspaceUiState';
 import { ACCOUNT_STATUS_FILTERS } from './accountRows';
 import type { CredentialHealthInspectionMode } from '@/features/monitoring/model/credentialInspectionSnapshot';
-import { ACCOUNT_TURN_TICKET_FILTERS } from './accountTurnTicket';
+import { ACCOUNT_FINGERPRINT_FILTERS } from './accountFingerprint';
 
 export type AccountsOAuthEditor = 'excluded' | 'alias';
 
@@ -28,8 +28,8 @@ const QUOTA_BAND_SET: ReadonlySet<AccountsWorkspaceUiState['quotaBandFilter']> =
   'lt20',
   'spent',
 ]);
-const TURN_TICKET_FILTER_SET: ReadonlySet<AccountsWorkspaceUiState['turnTicketFilter']> = new Set(
-  ACCOUNT_TURN_TICKET_FILTERS
+const FINGERPRINT_FILTER_SET: ReadonlySet<AccountsWorkspaceUiState['fingerprintFilter']> = new Set(
+  ACCOUNT_FINGERPRINT_FILTERS
 );
 const OPERATIONAL_FILTER_SET: ReadonlySet<AccountsWorkspaceUiState['operationalFilter']> = new Set([
   'all',
@@ -59,7 +59,7 @@ const MANAGED_QUERY_KEYS = [
   'status',
   'plan',
   'quota',
-  'ticket',
+  'fingerprint',
   'operation',
   'sort',
   'direction',
@@ -108,7 +108,12 @@ export const readAccountsWorkspaceUrlState = (
     statusFilter: readEnum(params, 'status', STATUS_FILTER_SET, fallback.statusFilter),
     planFilter: readNonEmpty(params, 'plan', fallback.planFilter),
     quotaBandFilter: readEnum(params, 'quota', QUOTA_BAND_SET, fallback.quotaBandFilter),
-    turnTicketFilter: readEnum(params, 'ticket', TURN_TICKET_FILTER_SET, fallback.turnTicketFilter),
+    fingerprintFilter: readEnum(
+      params,
+      'fingerprint',
+      FINGERPRINT_FILTER_SET,
+      fallback.fingerprintFilter
+    ),
     operationalFilter: readEnum(
       params,
       'operation',
@@ -171,7 +176,7 @@ export const writeAccountsWorkspaceUrlSearch = (
   setNonDefault(params, 'status', state.statusFilter, defaults.statusFilter);
   setNonDefault(params, 'plan', state.planFilter, defaults.planFilter);
   setNonDefault(params, 'quota', state.quotaBandFilter, defaults.quotaBandFilter);
-  setNonDefault(params, 'ticket', state.turnTicketFilter, defaults.turnTicketFilter);
+  setNonDefault(params, 'fingerprint', state.fingerprintFilter, defaults.fingerprintFilter);
   setNonDefault(params, 'operation', state.operationalFilter, defaults.operationalFilter);
   if (state.accountSort.key !== defaults.accountSort.key) {
     params.set('sort', state.accountSort.key);

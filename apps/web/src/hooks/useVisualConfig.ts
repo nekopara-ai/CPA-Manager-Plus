@@ -1,5 +1,3 @@
-import { parseMintConfig, validateMintConfig, applyMintConfig } from './gatewayMintConfig';
-import { MINT_KEYS, EMPTY_MINT_CONFIG } from '@/types/gatewayMintConfig';
 import { useCallback, useMemo, useReducer } from 'react';
 import { isMap, parse as parseYaml, parseDocument } from 'yaml';
 import type {
@@ -338,7 +336,6 @@ export function getVisualConfigValidationErrors(
   values: VisualConfigValues
 ): VisualConfigValidationErrors {
   return {
-    ...validateMintConfig(values.codexTurnTicket),
     port: getPortError(values.port),
     errorLogsMaxFiles: getNonNegativeIntegerError(values.errorLogsMaxFiles),
     logsMaxTotalSizeMb: getNonNegativeIntegerError(values.logsMaxTotalSizeMb),
@@ -435,15 +432,7 @@ function getNextDirtyFields(
       nextDirtyFields.add(key);
     }
   };
-  if (patch.codexTurnTicket) {
-    for (const key of MINT_KEYS) {
-      updateDirty(
-        `codexTurnTicket.${key}`,
-        (nextValues.codexTurnTicket ?? EMPTY_MINT_CONFIG)[key] ===
-          (baselineValues.codexTurnTicket ?? EMPTY_MINT_CONFIG)[key]
-      );
-    }
-  }
+
   const updateScalarDirty = (key: keyof VisualConfigValues) => {
     if (Object.prototype.hasOwnProperty.call(patch, key)) {
       updateDirty(key, nextValues[key] === baselineValues[key]);
@@ -791,7 +780,6 @@ export function useVisualConfig() {
       const devin = asRecord(parsed.devin);
 
       const newValues: VisualConfigValues = {
-        codexTurnTicket: parseMintConfig(codex),
         host: typeof parsed.host === 'string' ? parsed.host : '',
         port: String(parsed.port ?? ''),
 
@@ -945,8 +933,6 @@ export function useVisualConfig() {
         }
         const values = visualValues;
         const isDirty = (key: string) => dirtyFields.has(key);
-
-        applyMintConfig(doc, values.codexTurnTicket ?? EMPTY_MINT_CONFIG, isDirty);
 
         if (isDirty('host')) setStringInDoc(doc, ['host'], values.host);
         if (isDirty('port')) setIntFromStringInDoc(doc, ['port'], values.port);

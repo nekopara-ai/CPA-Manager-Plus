@@ -1,3 +1,4 @@
+import type { FingerprintSnapshot } from './fingerprint';
 /**
  * 认证文件相关类型
  * 基于原项目 src/modules/auth-files.js
@@ -21,117 +22,10 @@ export type AuthFileType =
   | 'empty'
   | 'unknown';
 
-export type CodexTurnTicketState =
-  | 'healthy'
-  | 'direct'
-  | 'blocked'
-  | 'partial'
-  | 'expiring'
-  | 'expired_or_invalid'
-  | 'missing'
-  | 'unclassified'
-  | 'disabled'
-  | 'not_scoped'
-  | 'unavailable';
-
-export type CodexTurnTicketRoutingMode = 'unknown' | 'direct' | 'inject' | 'blocked';
-
 /** Redacted as-of gateway acquisition snapshot; never raw credentials or cookies. */
-export interface CodexMintSnapshot {
-  ready?: boolean;
-  gateway?: string;
-  model?: string;
-  ticket_length?: number;
-  ticket_expires_at?: string | number;
-  pair_expires_at?: string | number;
-  observed_at?: string | number;
-  next_attempt_at?: string | number;
-  attempts?: number;
-  status?: number;
-  reason?: string;
-  in_flight?: boolean;
-}
-
-export interface CodexTurnTicketModelSnapshot {
-  mint_states?: Partial<Record<'sse' | 'websocket', CodexMintSnapshot>>;
-  mintStates?: Partial<Record<'sse' | 'websocket', CodexMintSnapshot>>;
-  model?: string;
-  ticket_state?: string;
-  ticketState?: string;
-  routing_mode?: string;
-  routingMode?: string;
-  routing_cookie_names?: string[];
-  routingCookieNames?: string[];
-  routing_validated_at?: string | number;
-  routingValidatedAt?: string | number;
-  routing_expires_at?: string | number;
-  routingExpiresAt?: string | number;
-  ticket_length?: number;
-  ticketLength?: number;
-  expires_at?: string | number;
-  expiresAt?: string | number;
-  last_observed_at?: string | number;
-  lastObservedAt?: string | number;
-  last_http_status?: number;
-  lastHttpStatus?: number;
-  last_observed_length?: number;
-  lastObservedLength?: number;
-  last_observed_healthy?: boolean;
-  lastObservedHealthy?: boolean;
-  last_result?: string;
-  lastResult?: string;
-  probe_in_flight?: boolean;
-  probeInFlight?: boolean;
-  probe_phase?: string;
-  probePhase?: string;
-  probe_attempts?: number;
-  probeAttempts?: number;
-  last_probe_at?: string | number;
-  lastProbeAt?: string | number;
-  last_probe_phase?: string;
-  lastProbePhase?: string;
-  last_probe_result?: string;
-  lastProbeResult?: string;
-  last_probe_complete?: boolean;
-  lastProbeComplete?: boolean;
-  last_probe_model_match?: boolean;
-  lastProbeModelMatch?: boolean;
-  next_probe_at?: string | number;
-  nextProbeAt?: string | number;
-  probe_backoff_until?: string | number;
-  probeBackoffUntil?: string | number;
-  harvest_backoff_until?: string | number;
-  harvestBackoffUntil?: string | number;
-}
-
-export interface CodexTurnTicketCredentialSnapshot {
-  plan?: string;
-  plan_source?: string;
-  configured?: boolean;
-  enabled?: boolean;
-  injection_enabled?: boolean;
-  injectionEnabled?: boolean;
-  adaptive_injection?: boolean;
-  adaptiveInjection?: boolean;
-  harvester_active?: boolean;
-  harvesterActive?: boolean;
-  target_length?: number;
-  targetLength?: number;
-  degraded_length?: number;
-  degradedLength?: number;
-  block_on_degraded?: boolean;
-  blockOnDegraded?: boolean;
-  state?: CodexTurnTicketState | string;
-  healthy_models?: number;
-  healthyModels?: number;
-  total_models?: number;
-  totalModels?: number;
-  earliest_expires_at?: string | number;
-  earliestExpiresAt?: string | number;
-  models?: CodexTurnTicketModelSnapshot[];
-}
 
 export interface AuthFileItem {
+  fingerprint_status?: FingerprintSnapshot;
   id?: string;
   name: string;
   type?: AuthFileType | string;
@@ -154,8 +48,6 @@ export interface AuthFileItem {
   geminiVirtualProject?: string;
   recent_requests?: RecentRequestBucket[];
   recentRequests?: RecentRequestBucket[];
-  codex_turn_ticket?: CodexTurnTicketCredentialSnapshot;
-  codexTurnTicket?: CodexTurnTicketCredentialSnapshot;
   [key: string]: unknown;
 }
 

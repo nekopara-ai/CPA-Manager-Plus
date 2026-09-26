@@ -1,5 +1,3 @@
-import { GatewayMintConfigEditor } from './GatewayMintConfigEditor';
-import { MINT_KEYS } from '@/types/gatewayMintConfig';
 import {
   useLayoutEffect,
   useCallback,
@@ -51,7 +49,6 @@ import type { ApiKeyMutation } from './ApiKeysCardEditor';
 import styles from './VisualConfigEditor.module.scss';
 
 type VisualSectionId =
-  | 'mint'
   | 'server'
   | 'tls'
   | 'remote'
@@ -336,15 +333,7 @@ export function VisualConfigEditor({
           'authAutoRefreshWorkers',
         ]),
       },
-      {
-        id: 'mint',
-        title: t('gateway_mint.title'),
-        description: t('gateway_mint.config_description'),
-        icon: IconShield,
-        errorCount: countErrors(
-          MINT_KEYS.map((key) => `codexTurnTicket.${key}` as VisualConfigFieldPath)
-        ),
-      },
+
       {
         id: 'quota',
         title: t('config_management.visual.sections.quota.title'),
@@ -1322,22 +1311,6 @@ export function VisualConfigEditor({
                 </SectionStack>
               </SectionSubsection>
             </SectionStack>
-          </ConfigSection>
-
-          <ConfigSection
-            id="mint"
-            ref={(node) => {
-              sectionRefs.current.mint = node;
-            }}
-            title={t('gateway_mint.title')}
-            description={t('gateway_mint.config_description')}
-            icon={<IconShield size={20} />}
-          >
-            <GatewayMintConfigEditor
-              value={values.codexTurnTicket}
-              disabled={disabled}
-              onChange={(codexTurnTicket) => onChange({ codexTurnTicket })}
-            />
           </ConfigSection>
 
           <ConfigSection

@@ -51,7 +51,7 @@ export type SummaryCardIcon =
   | 'reauth'
   | 'credential'
   | 'available'
-  | 'ticket'
+  | 'fingerprint'
   | 'attention'
   | 'quota-risk'
   | 'disabled'
@@ -124,7 +124,7 @@ const summaryIconMap: Record<SummaryCardIcon, ComponentType<IconProps>> = {
   reauth: IconRefreshCw,
   credential: IconKey,
   available: IconShieldCheck,
-  ticket: IconBinary,
+  fingerprint: IconBinary,
   attention: IconTriangleAlert,
   'quota-risk': IconPercentCircle,
   disabled: IconBan,

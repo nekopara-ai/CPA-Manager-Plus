@@ -429,57 +429,6 @@ describe('accountRows', () => {
     expect(row.quota.planType).toBe('plus');
   });
 
-  it('projects credential-scoped 292 ticket state into rows, metrics and filters', () => {
-    const rows = buildAccountRows(
-      [
-        {
-          name: 'ready.codex.json',
-          type: 'codex',
-          codex_turn_ticket: {
-            configured: true,
-            enabled: true,
-            harvester_active: true,
-            target_length: 292,
-            state: 'healthy',
-            healthy_models: 2,
-            total_models: 2,
-            earliest_expires_at: '2026-09-19T21:00:00Z',
-          },
-        },
-        {
-          name: 'missing.codex.json',
-          type: 'codex',
-          codex_turn_ticket: {
-            configured: true,
-            enabled: true,
-            target_length: 292,
-            state: 'missing',
-            healthy_models: 0,
-            total_models: 2,
-          },
-        },
-        { name: 'claude.json', type: 'claude' },
-      ],
-      emptyStores()
-    );
-
-    expect(rows[0].turnTicket).toMatchObject({ state: 'healthy', healthyModels: 2 });
-    expect(buildAccountMetrics(rows).ticketReady).toBe(1);
-    const baseFilters = {
-      provider: 'all',
-      status: 'all' as const,
-      plan: 'all',
-      quotaBand: 'all' as const,
-      search: '',
-    };
-    expect(
-      filterAccountRows(rows, { ...baseFilters, turnTicket: 'ready' }).map((row) => row.fileName)
-    ).toEqual(['ready.codex.json']);
-    expect(
-      filterAccountRows(rows, { ...baseFilters, turnTicket: 'missing' }).map((row) => row.fileName)
-    ).toEqual(['missing.codex.json']);
-  });
-
   it('uses the latest recovery across equally exhausted Codex windows', () => {
     const earlierResetAtMs = Date.parse('2026-07-30T04:00:00Z');
     const laterResetAtMs = Date.parse('2026-07-30T06:00:00Z');
@@ -2429,7 +2378,7 @@ describe('accountRows', () => {
       disabled: 1,
       unconfirmed: 1,
       needsInspectionAction: 0,
-      ticketReady: 0,
+      fingerprintReady: 0,
     });
     expect(
       metrics.available +
@@ -3600,4 +3549,3 @@ describe('accountRows', () => {
     expect(rows[1]?.provider).toBe('meta');
   });
 });
-

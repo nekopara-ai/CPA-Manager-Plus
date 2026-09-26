@@ -1,3 +1,4 @@
+import { CredentialPolicyFields } from './CredentialPolicyFields';
 import { useId, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/Button';
@@ -263,23 +264,12 @@ export function AccountConfigurationTab({
             </div>
           ) : null}
 
-          {(state?.providerKey || row.provider) === 'codex' ? (
-            <div className="form-group">
-              <label>{t('accounts.turn_ticket_plan')}</label>
-              <Select
-                value={draft.codexTicketPlan || 'auto'}
-                options={[
-                  { value: 'auto', label: t('accounts.turn_ticket_plan_auto') },
-                  { value: 'pro', label: t('accounts.turn_ticket_plan_option_pro') },
-                  { value: 'team', label: t('accounts.turn_ticket_plan_option_team') },
-                ]}
-                onChange={(value) => editor.updateField('codexTicketPlan', value)}
-                disabled={disabled}
-                ariaLabel={t('accounts.turn_ticket_plan')}
-              />
-              <p>{t('accounts.turn_ticket_plan_config_hint')}</p>
-            </div>
-          ) : null}
+          <CredentialPolicyFields
+            draft={draft}
+            errors={errors}
+            disabled={disabled}
+            onChange={editor.updateField}
+          />
 
           {capabilities.websockets ? (
             <div className={styles.configurationToggleRow}>

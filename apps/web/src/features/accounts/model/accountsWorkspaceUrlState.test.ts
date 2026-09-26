@@ -8,7 +8,7 @@ import {
 describe('accountsWorkspaceUrlState', () => {
   it('reads validated workspace filters, detail deep links and OAuth editors', () => {
     const state = readAccountsWorkspaceUrlState(
-      '?view=oauth&healthMode=server&search=team%2A&provider=codex&status=weekly_limited&plan=pro&quota=lt20&ticket=partial&operation=reauth&sort=name&direction=asc&pageSize=20&display=masked&account=file.json%00auth-1&tab=diagnostics&editor=alias&editorProvider=codex',
+      '?view=oauth&healthMode=server&search=team%2A&provider=codex&status=weekly_limited&plan=pro&quota=lt20&fingerprint=partial&operation=reauth&sort=name&direction=asc&pageSize=20&display=masked&account=file.json%00auth-1&tab=diagnostics&editor=alias&editorProvider=codex',
       DEFAULT_ACCOUNTS_WORKSPACE_UI_STATE
     );
 
@@ -20,7 +20,7 @@ describe('accountsWorkspaceUrlState', () => {
       statusFilter: 'weekly_limited',
       planFilter: 'pro',
       quotaBandFilter: 'lt20',
-      turnTicketFilter: 'partial',
+      fingerprintFilter: 'partial',
       operationalFilter: 'reauth',
       accountSort: { key: 'name', direction: 'asc' },
       pageSize: 20,
@@ -203,14 +203,14 @@ describe('accountsWorkspaceUrlState', () => {
     ).toBe('unconfirmed');
   });
 
-  it('round-trips the 292 ticket filter', () => {
+  it('round-trips the fingerprint filter', () => {
     const search = writeAccountsWorkspaceUrlSearch(
       '',
       {
         ...DEFAULT_ACCOUNTS_WORKSPACE_UI_STATE,
         view: 'accounts',
         healthMode: 'local',
-        turnTicketFilter: 'ready',
+        fingerprintFilter: 'ready',
         account: null,
         detailTab: 'overview',
         editor: null,
@@ -219,9 +219,9 @@ describe('accountsWorkspaceUrlState', () => {
       DEFAULT_ACCOUNTS_WORKSPACE_UI_STATE
     );
 
-    expect(search).toBe('?ticket=ready');
+    expect(search).toBe('?fingerprint=ready');
     expect(
-      readAccountsWorkspaceUrlState(search, DEFAULT_ACCOUNTS_WORKSPACE_UI_STATE).turnTicketFilter
+      readAccountsWorkspaceUrlState(search, DEFAULT_ACCOUNTS_WORKSPACE_UI_STATE).fingerprintFilter
     ).toBe('ready');
   });
 
