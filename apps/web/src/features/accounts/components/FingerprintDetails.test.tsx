@@ -3,6 +3,40 @@ import { describe, expect, it, vi } from 'vitest';
 import { FingerprintDetails } from './FingerprintDetails';
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 describe('fingerprint details', () => {
+  it('labels incomplete checks as pending while showing preserved routing and retry time', async () => {
+    let renderer: ReturnType<typeof create>;
+    await act(async () => {
+      renderer = create(
+        <FingerprintDetails
+          summary={{
+            state: 'blocked',
+            snapshot: {
+              enabled: true,
+              manually_disabled: false,
+              model_states: {
+                sol: {
+                  blocked: true,
+                  next_run_at: '2026-09-29T12:03:00Z',
+                  result: {
+                    model: 'sol',
+                    expected_model: 'sol',
+                    status: 'pending',
+                    used_outputs: 1,
+                  },
+                },
+              },
+            },
+          }}
+        />
+      );
+    });
+    const text = JSON.stringify(renderer!.toJSON());
+    expect(text).toContain('fingerprint_result_pending');
+    expect(text).toContain('fingerprint_gate_blocked');
+    expect(text).not.toContain('fingerprint_result_error');
+    expect(text).not.toContain('0.00%');
+    await act(async () => renderer!.unmount());
+  });
   it('renders quota as waiting, retaining the previous real verdict rather than an error or zero score', async () => {
     let renderer: ReturnType<typeof create>;
     await act(async () => {
