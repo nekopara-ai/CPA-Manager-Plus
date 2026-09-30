@@ -139,7 +139,9 @@ export function FingerprintDetails({ summary }: { summary?: AccountFingerprintSu
             <header className={styles.modelHeader}>
               <h4 title={m.model}>{m.model}</h4>
               <span className={styles.gate} data-gate={m.gate}>
-                {gateLabel(m.gate)}
+                {m.result?.status === 'pending' && active
+                  ? `${t('accounts.fingerprint_result_pending')} · ${gateLabel(m.gate)}`
+                  : gateLabel(m.gate)}
               </span>
             </header>
             {m.wait && (

@@ -2139,6 +2139,7 @@
     "fingerprint_wait_preserved": "Предыдущий результат сохранён; ожидание не означает несовпадение отпечатка.",
     "fingerprint_wait_retry": "Повтор не ранее",
     "fingerprint_result_error": "Request / configuration error",
+    "fingerprint_result_pending": "Insufficient answers, retry pending",
     "fingerprint_result_insufficient": "Insufficient valid output",
     "fingerprint_result_inconclusive": "Low confidence",
     "metric_fingerprint_ready": "Fingerprint matched",
