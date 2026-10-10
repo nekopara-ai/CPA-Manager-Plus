@@ -2133,6 +2133,7 @@
     "fingerprint_wait_preserved": "保留上次鉴定结果；本次等待不代表指纹不匹配。",
     "fingerprint_wait_retry": "最早重试时间",
     "fingerprint_result_error": "请求／配置错误",
+    "fingerprint_result_pending": "有效答案不足，待重试",
     "fingerprint_result_insufficient": "有效输出不足",
     "fingerprint_result_inconclusive": "置信度不足",
     "metric_fingerprint_ready": "指纹匹配",

@@ -2135,6 +2135,7 @@
     "fingerprint_wait_preserved": "Previous verdict retained; this wait is not a fingerprint mismatch.",
     "fingerprint_wait_retry": "Earliest retry",
     "fingerprint_result_error": "Request / configuration error",
+    "fingerprint_result_pending": "Insufficient answers, retry pending",
     "fingerprint_result_insufficient": "Insufficient valid output",
     "fingerprint_result_inconclusive": "Low confidence",
     "metric_fingerprint_ready": "Fingerprint matched",
