@@ -651,6 +651,8 @@ vi.mock('@/features/authFiles/hooks/useAuthFilesData', () => ({
       selectedFiles: mocks.selectedFiles,
       selectionCount: mocks.selectionCount,
       loading: mocks.authFilesLoading,
+      initialLoading: mocks.authFilesLoading && mocks.files.length === 0,
+      hasLoaded: mocks.files.length > 0 || !mocks.authFilesLoading,
       error: '',
       uploading: false,
       authJsonPasteSaving: false,
@@ -1472,6 +1474,21 @@ describe('AccountsPage replacement flows', () => {
     mocks.lastCodexReauthProps = null;
     mocks.lastHealthWorkspaceProps = null;
     mocks.localInspection = null;
+  });
+
+  it('keeps credential cards mounted during a refresh with existing files', async () => {
+    const renderer = await renderAccountsPage();
+    const before = renderer.toJSON();
+    expect(JSON.stringify(before)).toContain('codex.json');
+    mocks.authFilesLoading = true;
+    await act(async () => {
+      renderer.update(<AccountsPage />);
+    });
+    expect(JSON.stringify(renderer.toJSON())).toContain('codex.json');
+    expect(findLoadingSpinners(renderer.root)).toHaveLength(0);
+    await act(async () => {
+      renderer.unmount();
+    });
   });
 
   it('opens OAuth editors inline instead of navigating to auth-files routes', async () => {
@@ -11104,7 +11121,13 @@ describe('AccountsPage replacement flows', () => {
       requestMonitoringAvailable: true,
       serverCodexInspectionAvailable: false,
     };
-    mocks.getAccountHistory.mockResolvedValue(makeAccountHistoryResponse([]));
+    mocks.getAccountHistory.mockResolvedValue(makeAccountHistoryResponse([{
+      row_key: getAuthFileSelectionKey(file), account_key: 'history@example.com', matched: true,
+      total_requests: 1, success_calls: 1, failure_calls: 0, total_tokens: 100, total_cost: 0.1,
+      success_rate: 1, first_seen_ms: 1, last_seen_ms: 2, sync_status: 'ready',
+      latest_request: { timestamp_ms: 2, failed: false },
+      recent_requests: [{ timestamp_ms: 2, failed: false }],
+    }]));
 
     const renderer = await renderAccountsPage();
     await flushPromises();
@@ -11118,6 +11141,7 @@ describe('AccountsPage replacement flows', () => {
 
     mocks.showNotification.mockClear();
     mocks.getAccountHistory.mockClear();
+    expect(renderer.root.findAllByProps({ 'data-request-status': 'success' })).toHaveLength(1);
     mocks.getAccountHistory.mockRejectedValueOnce(new Error('503 Service Unavailable'));
 
     await act(async () => {
@@ -11128,6 +11152,7 @@ describe('AccountsPage replacement flows', () => {
       'accounts.history_refresh_failed:503 Service Unavailable',
       'error'
     );
+    expect(renderer.root.findAllByProps({ 'data-request-status': 'success' })).toHaveLength(1);
     expect(mocks.showNotification).not.toHaveBeenCalledWith(
       'accounts.history_refresh_success',
       'success'
@@ -12155,6 +12180,10 @@ describe('AccountsPage replacement flows', () => {
   it('keeps the last successful quota visible while a manual refresh is pending or fails', async () => {
     const file = makeCodexFile('codex-preserved.json', 'auth-preserved', 'preserved@example.com');
     mocks.files = [file];
+    mocks.location = {
+      pathname: '/accounts',
+      search: '?account=codex-preserved.json%00auth-preserved&tab=quota',
+    };
     const storeKey = getQuotaCredentialStoreKey(file);
     const previousQuota = {
       status: 'success' as const,
@@ -12189,6 +12218,10 @@ describe('AccountsPage replacement flows', () => {
     });
 
     expect(mocks.quotaState.setCodexQuota).not.toHaveBeenCalled();
+    expect(
+      renderer.root.findByType(AccountQuotaTab).props.detailView.quota.windows[0].usedPercent
+    ).toBe(25);
+    expect(readText(renderer.root.findByType(AccountQuotaTab))).toContain('75%');
     quotaResult.reject(new Error('provider unavailable'));
     await act(async () => {
       await refreshPromise;
@@ -12203,6 +12236,13 @@ describe('AccountsPage replacement flows', () => {
     ];
     expect(failedState.status).toBe('error');
     expect(failedState.windows).toEqual(previousQuota.windows);
+    mocks.quotaState.codexQuota = { [storeKey]: failedState };
+    await act(async () => {
+      renderer.update(<AccountsPage />);
+    });
+    expect(
+      renderer.root.findByType(AccountQuotaTab).props.detailView.quota.windows[0].usedPercent
+    ).toBe(25);
   });
 
   it('keeps the last successful Codex quota visible while a reset verification fails', async () => {
