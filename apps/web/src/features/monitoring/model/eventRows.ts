@@ -10,7 +10,7 @@ import {
 import { formatApiKeyHashLabel } from './base';
 import { buildSearchText, maskAuthIndex, maskEmailLike, readString } from './base';
 import { sanitizeApiKeyDisplayText, type ApiKeyDisplayInfo } from './apiKeys';
-import { isKeyDisambiguatedLabel } from './sourceDisplay';
+import { isKeyDisambiguatedLabel, isProviderLikeMonitoringLabel } from './sourceDisplay';
 import { buildHourLabel, buildLocalDayKey } from './range';
 import type { MonitoringAuthMeta, MonitoringChannelMeta, MonitoringEventRow } from './types';
 
@@ -89,11 +89,17 @@ export const buildEventRows = (
       const sourceIdentity = readString(detail.source);
       const sourceHashIdentity = readString(detail.source_hash ?? detail.sourceHash);
       const authMeta = authMetaMap.get(authIndex);
+      const snapshotProvider = readString(
+        detail.auth_provider_snapshot ?? detail.authProviderSnapshot
+      );
+      const eventProvider = readString(detail.provider);
+      const effectiveProvider = snapshotProvider || eventProvider;
       const sourceMeta = resolveSourceDisplay(
         detail.source,
         detail.auth_index,
         sourceInfoMap,
-        authFileMap
+        authFileMap,
+        effectiveProvider
       );
       const snapshotAccount = readString(detail.account_snapshot ?? detail.accountSnapshot);
       const snapshotLabel = readString(
@@ -102,11 +108,6 @@ export const buildEventRows = (
           detail.auth_file_snapshot ??
           detail.authFileSnapshot
       );
-      const snapshotProvider = readString(
-        detail.auth_provider_snapshot ?? detail.authProviderSnapshot
-      );
-      const eventProvider = readString(detail.provider);
-      const effectiveProvider = snapshotProvider || eventProvider;
       const snapshotDisplay = snapshotAccount || snapshotLabel;
       const channelMeta =
         channelByAuthIndex.get(authIndex) ||
@@ -115,6 +116,12 @@ export const buildEventRows = (
         channelMeta?.name || authMeta?.provider || snapshotProvider || sourceMeta.type || '-';
       const resolvedSourceName = readString(sourceMeta.displayName);
       const labelCandidates = authMeta?.label || snapshotLabel || snapshotDisplay;
+      const configuredSourceName = Boolean(
+        resolvedSourceName &&
+          sourceMeta.identityKey &&
+          !sourceMeta.identityKey.startsWith('source:') &&
+          !sourceMeta.identityKey.startsWith('auth:')
+      );
       // Prefer multi-key OpenAI-compatible disambiguation (e.g. "kuaileshifu #1") over the
       // bare provider/auth label so realtime cells match account overview identity.
       const sourceLabel =
@@ -123,7 +130,9 @@ export const buildEventRows = (
           isKeyDisambiguatedLabel(resolvedSourceName, channelMeta?.host) ||
           isKeyDisambiguatedLabel(resolvedSourceName, labelCandidates) ||
           isKeyDisambiguatedLabel(resolvedSourceName, authMeta?.account) ||
-          isKeyDisambiguatedLabel(resolvedSourceName, snapshotAccount))
+          isKeyDisambiguatedLabel(resolvedSourceName, snapshotAccount) ||
+          (configuredSourceName &&
+            isProviderLikeMonitoringLabel(authMeta?.label || snapshotDisplay, effectiveProvider)))
           ? resolvedSourceName
           : '') ||
         authMeta?.label ||
