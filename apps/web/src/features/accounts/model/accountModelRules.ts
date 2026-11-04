@@ -9,9 +9,11 @@ export type AccountModelExclusionPriority = 'merge' | 'override' | 'unknown';
 
 // Official CPA releases merge credential and global OAuth exclusions from v6.10.8
 // through v8.0.32; v8.0.33+ gives nonempty credential exclusions priority over global
-// exclusions, and an empty credential list inherits them. Custom builds stay unknown.
+// exclusions, and an empty credential list inherits them. Unrecognized custom builds
+// stay unknown; the maintained Nekopara release line preserves v8.0.33+ semantics.
 const CPA_RELEASE_VERSION_PATTERN = /^v?(\d+)\.(\d+)\.(\d+)$/i;
 const CPA_GIT_DESCRIBE_VERSION_PATTERN = /^v?(\d+)\.(\d+)\.(\d+)-(\d+)-g([0-9a-f]+)(?:-dirty)?$/i;
+const CPA_NEKOPARA_VERSION_PATTERN = /^v?(\d+)\.(\d+)\.(\d+)-nekopara\.([1-9]\d*)$/i;
 // The CPAMP demo reports `<release>-demo` and emulates that release.
 const CPAMP_DEMO_VERSION_PATTERN = /^v?(\d+)\.(\d+)\.(\d+)-demo$/i;
 const FIRST_VERIFIED_MERGE_VERSION = [6, 10, 8] as const;
@@ -30,8 +32,10 @@ export const getAccountModelExclusionPriority = (
 ): AccountModelExclusionPriority => {
   const normalizedVersion = serverVersion?.trim() ?? '';
   const describeMatch = normalizedVersion.match(CPA_GIT_DESCRIBE_VERSION_PATTERN);
+  const nekoparaMatch = normalizedVersion.match(CPA_NEKOPARA_VERSION_PATTERN);
   const match =
     describeMatch ??
+    nekoparaMatch ??
     normalizedVersion.match(CPA_RELEASE_VERSION_PATTERN) ??
     normalizedVersion.match(CPAMP_DEMO_VERSION_PATTERN);
   if (!match) return 'unknown';
@@ -39,6 +43,8 @@ export const getAccountModelExclusionPriority = (
   if (compareVersion(version, FIRST_VERIFIED_MERGE_VERSION) < 0) return 'unknown';
   const comparison = compareVersion(version, LAST_MERGE_VERSION);
   if (comparison > 0) return 'override';
+  // Do not infer the precedence of older fork builds around the transition.
+  if (nekoparaMatch) return 'unknown';
   if (comparison < 0) return 'merge';
   // Commits after the v8.0.32 tag may or may not include the precedence change.
   return describeMatch ? 'unknown' : 'merge';
@@ -364,9 +370,7 @@ export const buildAccountModelRuleProjection = ({
   });
 
   const knownRuleModelIds = new Set(
-    rows
-      .filter((row) => row.ruleModelIdResolved)
-      .map((row) => normalizeModelId(row.ruleModelId))
+    rows.filter((row) => row.ruleModelIdResolved).map((row) => normalizeModelId(row.ruleModelId))
   );
   const isAdvancedRule = (rule: string) =>
     rule.includes('*') || !knownRuleModelIds.has(normalizeModelId(rule));

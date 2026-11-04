@@ -239,25 +239,35 @@ describe('AccountModelsTab', () => {
     expect(readText(renderer.root.findAllByType('article')[0])).toContain('gpt-6-luna');
   });
 
-  it('keeps all prior global exclusions on the first credential edit with override semantics', () => {
-    mockAuthState.serverVersion = 'v8.0.40';
-    const editor = makeEditor();
-    const { renderer } = renderTab({
-      editor,
-      models: [{ id: 'gpt-5.6-terra' }, { id: 'gpt-6-luna' }],
-      globalExcluded: { codex: ['gpt-5.6-terra'] },
-    });
-    act(() => {
-      findButtonByText(
-        findModelRow(renderer, 'gpt-6-luna'),
-        'accounts.model_disable_for_credential'
-      ).props.onClick();
-    });
-    expect(editor.updateField).toHaveBeenCalledWith(
-      'excludedModelsText',
-      'gpt-5.6-terra\ngpt-6-luna'
-    );
-  });
+  it.each(['v8.0.40', '8.0.50-nekopara.303'])(
+    'keeps all prior global exclusions on the first credential edit with CPA %s',
+    (version) => {
+      mockAuthState.serverVersion = version;
+      const editor = makeEditor();
+      const { renderer } = renderTab({
+        editor,
+        models: [{ id: 'gpt-5.6-terra' }, { id: 'gpt-6-luna' }],
+        globalExcluded: { codex: ['gpt-5.6-terra'] },
+      });
+      expect(readText(renderer.toJSON())).not.toContain('accounts.model_precedence_unknown');
+      expect(
+        findButtonByText(
+          findModelRow(renderer, 'gpt-6-luna'),
+          'accounts.model_disable_for_credential'
+        ).props.disabled
+      ).toBe(false);
+      act(() => {
+        findButtonByText(
+          findModelRow(renderer, 'gpt-6-luna'),
+          'accounts.model_disable_for_credential'
+        ).props.onClick();
+      });
+      expect(editor.updateField).toHaveBeenCalledWith(
+        'excludedModelsText',
+        'gpt-5.6-terra\ngpt-6-luna'
+      );
+    }
+  );
 
   it('offers the global editor instead of a false last-rule unblock', () => {
     mockAuthState.serverVersion = 'v8.0.40';
