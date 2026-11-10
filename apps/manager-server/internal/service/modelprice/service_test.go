@@ -568,9 +568,12 @@ func TestFetchAllModelPricesFallsBackWhenPreferredSourceHangs(t *testing.T) {
 	}
 }
 
-func TestSyncHTTPClientBoundsProxyResolution(t *testing.T) {
+func TestSyncHTTPClientDoesNotFetchRemoteCPAConfig(t *testing.T) {
+	var requests atomic.Int32
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		<-r.Context().Done()
+		requests.Add(1)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"proxy-url":"http://127.0.0.1:10808"}`))
 	}))
 	t.Cleanup(upstream.Close)
 
@@ -578,7 +581,6 @@ func TestSyncHTTPClientBoundsProxyResolution(t *testing.T) {
 		CPAUpstreamURL: upstream.URL,
 		ManagementKey:  "test-key",
 	}})
-	service.syncProxyTimeout = 25 * time.Millisecond
 
 	startedAt := time.Now()
 	client, proxyUsed, err := service.syncHTTPClient(context.Background())
@@ -590,6 +592,9 @@ func TestSyncHTTPClientBoundsProxyResolution(t *testing.T) {
 	}
 	if client == nil || proxyUsed {
 		t.Fatalf("client = %#v, proxy used = %v", client, proxyUsed)
+	}
+	if got := requests.Load(); got != 0 {
+		t.Fatalf("remote CPA configuration requests = %d, want 0", got)
 	}
 }
 

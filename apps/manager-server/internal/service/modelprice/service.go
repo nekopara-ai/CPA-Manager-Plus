@@ -8,7 +8,6 @@ import (
 	"io"
 	"math"
 	"net/http"
-	"net/url"
 	"sort"
 	"strconv"
 	"strings"
@@ -39,7 +38,6 @@ const maxSyncCandidates = 8
 const minCandidateScore = 0.55
 const minWeakCandidateScore = 0.34
 const defaultSyncSourceTimeout = 10 * time.Second
-const defaultSyncProxyResolutionTimeout = 5 * time.Second
 const defaultRuntimeModelDiscoveryTimeout = 5 * time.Second
 
 type UpdateRequest struct {
@@ -94,7 +92,6 @@ type Service struct {
 	store                        *store.Store
 	syncSources                  []priceSyncSource
 	syncSourceTimeout            time.Duration
-	syncProxyTimeout             time.Duration
 	runtimeModelDiscoveryTimeout time.Duration
 	setupResolver                SetupResolver
 	notifierMu                   sync.RWMutex
@@ -270,7 +267,6 @@ func newMultiSource(
 		store:                        store,
 		syncSources:                  sources,
 		syncSourceTimeout:            defaultSyncSourceTimeout,
-		syncProxyTimeout:             defaultSyncProxyResolutionTimeout,
 		runtimeModelDiscoveryTimeout: defaultRuntimeModelDiscoveryTimeout,
 		setupResolver:                resolver,
 	}
@@ -641,39 +637,12 @@ func syncResultSource(sources []string) string {
 	return ""
 }
 
-func (s *Service) syncHTTPClient(ctx context.Context) (*http.Client, bool, error) {
-	proxyCtx := ctx
-	cancel := func() {}
-	if s.syncProxyTimeout > 0 {
-		proxyCtx, cancel = context.WithTimeout(ctx, s.syncProxyTimeout)
-	}
-	proxyURL := s.resolveCPAProxyURL(proxyCtx)
-	cancel()
-	if proxyURL == "" {
-		return defaultSyncHTTPClient(), false, nil
-	}
-	parsed, err := url.Parse(proxyURL)
-	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
-		return nil, false, errors.New("model price sync failed: invalid proxy URL")
-	}
-	transport := http.DefaultTransport.(*http.Transport).Clone()
-	transport.Proxy = http.ProxyURL(parsed)
-	return &http.Client{Timeout: 30 * time.Second, Transport: transport}, true, nil
-}
-
-func (s *Service) resolveCPAProxyURL(ctx context.Context) string {
-	if s.setupResolver == nil {
-		return ""
-	}
-	setup, ok, err := s.setupResolver.ResolveSetup(ctx)
-	if err != nil || !ok || setup.CPAUpstreamURL == "" || setup.ManagementKey == "" {
-		return ""
-	}
-	cfg, err := cpa.FetchManagementConfig(ctx, setup.CPAUpstreamURL, setup.ManagementKey)
-	if err != nil {
-		return ""
-	}
-	return strings.TrimSpace(cfg.ProxyURL)
+func (s *Service) syncHTTPClient(_ context.Context) (*http.Client, bool, error) {
+	// Price sources are fetched by Manager Server, which may run on a different
+	// host or in a different network namespace from CPA. Use this process's
+	// network configuration (including standard proxy environment variables),
+	// never the remote CPA's inference proxy. proxyUsed describes CPA proxy use.
+	return defaultSyncHTTPClient(), false, nil
 }
 
 func defaultSyncHTTPClient() *http.Client {

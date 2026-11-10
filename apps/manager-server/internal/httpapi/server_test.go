@@ -940,17 +940,11 @@ func TestModelPricesSyncCachesModelsDevAndSkipsCoveredFallbacks(t *testing.T) {
 	}
 }
 
-func TestModelPricesSyncUsesCPAProxyURL(t *testing.T) {
+func TestModelPricesSyncDoesNotUseRemoteCPAProxyURL(t *testing.T) {
 	proxyObserved := make(chan string, 1)
 	proxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		proxyObserved <- r.URL.String()
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{
-			"gpt-proxy": {
-				"input_cost_per_token": 0.000001,
-				"output_cost_per_token": 0.000002
-			}
-		}`))
+		http.Error(w, "CPA proxy belongs to another host", http.StatusBadGateway)
 	}))
 	t.Cleanup(proxy.Close)
 
@@ -958,7 +952,8 @@ func TestModelPricesSyncUsesCPAProxyURL(t *testing.T) {
 	cpaMock.ProxyURL = proxy.URL
 
 	source := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.Error(w, "source should be reached through proxy", http.StatusInternalServerError)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"gpt-proxy":{"input_cost_per_token":0.000001,"output_cost_per_token":0.000002}}`))
 	}))
 	t.Cleanup(source.Close)
 	stubModelPriceSyncURLs(t, source.URL, "")
@@ -979,11 +974,8 @@ func TestModelPricesSyncUsesCPAProxyURL(t *testing.T) {
 	}
 	select {
 	case got := <-proxyObserved:
-		if strings.TrimRight(got, "/") != source.URL {
-			t.Fatalf("proxy request URL = %q, want %q", got, source.URL)
-		}
+		t.Fatalf("price sync unexpectedly used remote CPA proxy for %q", got)
 	default:
-		t.Fatal("proxy was not used")
 	}
 	var response struct {
 		Imported  int  `json:"imported"`
@@ -992,7 +984,7 @@ func TestModelPricesSyncUsesCPAProxyURL(t *testing.T) {
 	if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
-	if response.Imported != 1 || !response.ProxyUsed {
+	if response.Imported != 1 || response.ProxyUsed {
 		t.Fatalf("sync response = %#v", response)
 	}
 }
