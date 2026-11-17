@@ -9,13 +9,16 @@ import { AccountModelsTab } from './AccountModelsTab';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-const mockAuthState = vi.hoisted(() => ({ serverVersion: 'v8.0.13' }));
+const mockAuthState = vi.hoisted(() => ({
+  serverVersion: 'v8.0.13' as string | null,
+  serverExcludedModelsPrecedence: null as 'merge' | 'override' | null,
+}));
 vi.mock('@/stores/useAuthStore', () => ({
-  useAuthStore: (selector: (state: { serverVersion: string }) => unknown) =>
-    selector(mockAuthState),
+  useAuthStore: (selector: (state: typeof mockAuthState) => unknown) => selector(mockAuthState),
 }));
 beforeEach(() => {
   mockAuthState.serverVersion = 'v8.0.13';
+  mockAuthState.serverExcludedModelsPrecedence = null;
 });
 
 vi.mock('react-i18next', async (importOriginal) => {
@@ -239,7 +242,7 @@ describe('AccountModelsTab', () => {
     expect(readText(renderer.root.findAllByType('article')[0])).toContain('gpt-6-luna');
   });
 
-  it.each(['v8.0.40', '8.0.50-nekopara.303'])(
+  it.each(['v8.0.40', '8.0.50-nekopara.303', '8.0.57-dsh-prompt-candidate'])(
     'keeps all prior global exclusions on the first credential edit with CPA %s',
     (version) => {
       mockAuthState.serverVersion = version;
@@ -304,6 +307,24 @@ describe('AccountModelsTab', () => {
       'accounts.model_restore_for_credential'
     );
     expect(action.props.disabled).toBe(true);
+  });
+
+  it('enables model actions on dev/custom CPA builds when server capability header reports override', () => {
+    mockAuthState.serverVersion = 'dev';
+    mockAuthState.serverExcludedModelsPrecedence = 'override';
+    const editor = makeEditor();
+    const { renderer } = renderTab({
+      editor,
+      models: [{ id: 'gpt-5.6-terra' }, { id: 'gpt-6-luna' }],
+      globalExcluded: { codex: ['gpt-5.6-terra'] },
+    });
+    expect(readText(renderer.toJSON())).not.toContain('accounts.model_precedence_unknown');
+    expect(
+      findButtonByText(
+        findModelRow(renderer, 'gpt-6-luna'),
+        'accounts.model_disable_for_credential'
+      ).props.disabled
+    ).toBe(false);
   });
 
   it('routes a restore that would empty the credential list to global rules', () => {

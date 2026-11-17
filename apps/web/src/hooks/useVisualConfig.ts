@@ -164,6 +164,7 @@ type CodexIdentityConfuseCompatibility = 'supported' | 'unsupported' | 'unverifi
 type VisualConfigRuntime = {
   serverVersion?: string | null;
   serverCommit?: string | null;
+  serverFork?: string | null;
 };
 
 const CODEX_IDENTITY_CONFUSE_REMOVAL_COMMIT = '48686ccc';
@@ -171,6 +172,8 @@ const CODEX_IDENTITY_CONFUSE_LAST_SUPPORTED_VERSION = [8, 0, 3] as const;
 const CODEX_IDENTITY_CONFUSE_REMOVED_VERSION = [8, 0, 4] as const;
 const CPA_RELEASE_VERSION_PATTERN = /^v?(\d+)\.(\d+)\.(\d+)(?:-(?:alpha|beta|rc)(?:[.-]?\d+)?)?$/i;
 const CPA_GIT_DESCRIBE_VERSION_PATTERN = /^v?(\d+)\.(\d+)\.(\d+)-(\d+)-g([0-9a-f]+)(?:-dirty)?$/i;
+const CPA_NEKOPARA_IDENTITY_PATTERN =
+  /^v?(?:[89]|\d{2,})\.\d+\.\d+-nekopara\.[1-9]\d*(?:[-+][0-9a-z._-]+)?$/i;
 
 function compareCpaVersion(current: readonly number[], baseline: readonly number[]): number {
   for (let index = 0; index < baseline.length; index += 1) {
@@ -188,15 +191,26 @@ function isExactCpaCommit(serverCommit: string | null | undefined, expected: str
 
 export function getCodexIdentityConfuseCompatibility(
   serverVersion?: string | null,
-  serverCommit?: string | null
+  serverCommit?: string | null,
+  serverFork?: string | null
 ): CodexIdentityConfuseCompatibility {
   if (isExactCpaCommit(serverCommit, CODEX_IDENTITY_CONFUSE_REMOVAL_COMMIT)) {
     return 'unsupported';
   }
+  if (serverFork?.trim().toLowerCase() === 'nekopara') {
+    return 'supported';
+  }
 
   const normalizedVersion = serverVersion?.trim() ?? '';
+  const normalizedCommit = serverCommit?.trim().toLowerCase() ?? '';
   // The maintained fork retains identity-confuse after upstream removed it.
-  if (/^v?8\.\d+\.\d+-nekopara\.\d+$/.test(normalizedVersion)) return 'supported';
+  if (
+    CPA_NEKOPARA_IDENTITY_PATTERN.test(normalizedVersion) ||
+    /^v?8\.\d+\.\d+-dsh-prompt-candidate$/i.test(normalizedVersion) ||
+    normalizedCommit.includes('+dsh-prompt-replace')
+  ) {
+    return 'supported';
+  }
 
   const describeMatch = normalizedVersion.match(CPA_GIT_DESCRIBE_VERSION_PATTERN);
   if (describeMatch) {
@@ -1082,7 +1096,8 @@ export function useVisualConfig(runtime: VisualConfigRuntime = {}) {
   const { visualValues: storedVisualValues, visualParseError, dirtyFields } = state;
   const codexIdentityConfuseCompatibility = getCodexIdentityConfuseCompatibility(
     runtime.serverVersion,
-    runtime.serverCommit
+    runtime.serverCommit,
+    runtime.serverFork
   );
   // Unknown/custom builds are conservative: do not expose a removed upstream
   // control unless the connected CPA version is known to support it.

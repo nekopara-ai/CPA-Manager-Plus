@@ -6,6 +6,7 @@ import { CoolingPolicySelect } from './CoolingPolicySelect';
 const authState = vi.hoisted(() => ({
   serverVersion: null as string | null,
   serverCommit: null as string | null,
+  serverFork: null as string | null,
 }));
 
 vi.mock('@/stores/useAuthStore', () => ({
@@ -23,10 +24,35 @@ describe('CoolingPolicySelect compatibility', () => {
   beforeEach(() => {
     authState.serverVersion = null;
     authState.serverCommit = null;
+    authState.serverFork = null;
   });
 
-  it('keeps all three policies available for a supported CPA build', () => {
-    authState.serverVersion = 'v7.2.92-375-g6039d2c1';
+  it.each(['v7.2.92-375-g6039d2c1', '8.0.50-nekopara.303', '8.0.57-dsh-prompt-candidate'])(
+    'keeps all three policies available for supported CPA build %s',
+    (version) => {
+      authState.serverVersion = version;
+      let renderer!: ReactTestRenderer;
+      act(() => {
+        renderer = create(<CoolingPolicySelect value="enabled" onChange={() => {}} />);
+      });
+
+      const select = renderer.root.findByType(Select);
+      expect(select.props.value).toBe('enabled');
+      expect(select.props.options.map((option: { value: string }) => option.value)).toEqual([
+        'inherit',
+        'enabled',
+        'disabled',
+      ]);
+      expect(select.props.disabled).toBe(false);
+      expect(renderer.root.findAllByProps({ role: 'note' })).toHaveLength(0);
+
+      act(() => renderer.unmount());
+    }
+  );
+
+  it('keeps all three policies available when X-CPA-FORK reports nekopara on dev builds', () => {
+    authState.serverVersion = 'dev';
+    authState.serverFork = 'nekopara';
     let renderer!: ReactTestRenderer;
     act(() => {
       renderer = create(<CoolingPolicySelect value="enabled" onChange={() => {}} />);
@@ -34,12 +60,6 @@ describe('CoolingPolicySelect compatibility', () => {
 
     const select = renderer.root.findByType(Select);
     expect(select.props.value).toBe('enabled');
-    expect(select.props.options.map((option: { value: string }) => option.value)).toEqual([
-      'inherit',
-      'enabled',
-      'disabled',
-    ]);
-    expect(select.props.disabled).toBe(false);
     expect(renderer.root.findAllByProps({ role: 'note' })).toHaveLength(0);
 
     act(() => renderer.unmount());

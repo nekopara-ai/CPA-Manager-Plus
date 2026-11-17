@@ -1284,6 +1284,8 @@ describe('useVisualConfig', () => {
     ['v8.0.11', 'unsupported'],
     ['v8.0.13-nekopara.217', 'supported'],
     ['8.0.13-nekopara.217', 'supported'],
+    ['8.0.57-dsh-prompt-candidate', 'supported'],
+    ['v9.0.0-nekopara.1', 'supported'],
     ['v8.0.13-custom.217', 'unverified'],
     ['v8.0.3-0-gdeadbee', 'supported'],
     ['v8.0.3-1-g48686ccc', 'unsupported'],
@@ -1299,6 +1301,7 @@ describe('useVisualConfig', () => {
     expect(
       getCodexIdentityConfuseCompatibility('dev', '48686ccc8fbe898c2d048ac4815a7b2f1e409e27')
     ).toBe('unsupported');
+    expect(getCodexIdentityConfuseCompatibility('dev', null, 'nekopara')).toBe('supported');
   });
 
   it.each(['v8.0.3', 'v8.0.13-nekopara.217'])(

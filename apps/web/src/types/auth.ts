@@ -31,6 +31,8 @@ export interface AuthState {
   serverVersion: string | null;
   serverCommit: string | null;
   serverBuildDate: string | null;
+  serverExcludedModelsPrecedence?: 'merge' | 'override' | null;
+  serverFork?: string | null;
   supportsPlugin: boolean;
 }
 

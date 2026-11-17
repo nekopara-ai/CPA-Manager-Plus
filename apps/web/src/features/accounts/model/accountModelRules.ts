@@ -9,11 +9,14 @@ export type AccountModelExclusionPriority = 'merge' | 'override' | 'unknown';
 
 // Official CPA releases merge credential and global OAuth exclusions from v6.10.8
 // through v8.0.32; v8.0.33+ gives nonempty credential exclusions priority over global
-// exclusions, and an empty credential list inherits them. Unrecognized custom builds
-// stay unknown; the maintained Nekopara release line preserves v8.0.33+ semantics.
+// exclusions, and an empty credential list inherits them. Explicit capability headers
+// take precedence over version parsing, and any valid semantic version >= 8.0.33
+// (including fork, candidate, prerelease, and build-metadata tags) uses override.
 const CPA_RELEASE_VERSION_PATTERN = /^v?(\d+)\.(\d+)\.(\d+)$/i;
 const CPA_GIT_DESCRIBE_VERSION_PATTERN = /^v?(\d+)\.(\d+)\.(\d+)-(\d+)-g([0-9a-f]+)(?:-dirty)?$/i;
-const CPA_NEKOPARA_VERSION_PATTERN = /^v?(\d+)\.(\d+)\.(\d+)-nekopara\.([1-9]\d*)$/i;
+const CPA_SEMVER_EXTENDED_PATTERN =
+  /^v?(\d+)\.(\d+)\.(\d+)(?:-([0-9a-z]+(?:[.-][0-9a-z]+)*))?(?:\+([0-9a-z]+(?:[.-][0-9a-z]+)*))?$/i;
+const CPA_INVALID_NEKOPARA_ZERO_PATTERN = /^v?\d+\.\d+\.\d+-nekopara\.0(?:$|[-+.])/i;
 // The CPAMP demo reports `<release>-demo` and emulates that release.
 const CPAMP_DEMO_VERSION_PATTERN = /^v?(\d+)\.(\d+)\.(\d+)-demo$/i;
 const FIRST_VERIFIED_MERGE_VERSION = [6, 10, 8] as const;
@@ -28,23 +31,31 @@ const compareVersion = (current: readonly number[], baseline: readonly number[])
 };
 
 export const getAccountModelExclusionPriority = (
-  serverVersion?: string | null
+  serverVersion?: string | null,
+  explicitPrecedence?: string | null
 ): AccountModelExclusionPriority => {
+  const normalizedExplicit = explicitPrecedence?.trim().toLowerCase() ?? '';
+  if (normalizedExplicit === 'override' || normalizedExplicit === 'merge') {
+    return normalizedExplicit;
+  }
+
   const normalizedVersion = serverVersion?.trim() ?? '';
+  if (!normalizedVersion || CPA_INVALID_NEKOPARA_ZERO_PATTERN.test(normalizedVersion)) {
+    return 'unknown';
+  }
+
   const describeMatch = normalizedVersion.match(CPA_GIT_DESCRIBE_VERSION_PATTERN);
-  const nekoparaMatch = normalizedVersion.match(CPA_NEKOPARA_VERSION_PATTERN);
-  const match =
-    describeMatch ??
-    nekoparaMatch ??
-    normalizedVersion.match(CPA_RELEASE_VERSION_PATTERN) ??
-    normalizedVersion.match(CPAMP_DEMO_VERSION_PATTERN);
+  const releaseMatch = normalizedVersion.match(CPA_RELEASE_VERSION_PATTERN);
+  const demoMatch = normalizedVersion.match(CPAMP_DEMO_VERSION_PATTERN);
+  const semverMatch = normalizedVersion.match(CPA_SEMVER_EXTENDED_PATTERN);
+  const match = describeMatch ?? releaseMatch ?? demoMatch ?? semverMatch;
   if (!match) return 'unknown';
   const version = match.slice(1, 4).map((segment) => Number.parseInt(segment, 10));
   if (compareVersion(version, FIRST_VERIFIED_MERGE_VERSION) < 0) return 'unknown';
   const comparison = compareVersion(version, LAST_MERGE_VERSION);
   if (comparison > 0) return 'override';
-  // Do not infer the precedence of older fork builds around the transition.
-  if (nekoparaMatch) return 'unknown';
+  // Do not infer the precedence of older arbitrary suffixes around or before the transition.
+  if (!describeMatch && !releaseMatch && !demoMatch) return 'unknown';
   if (comparison < 0) return 'merge';
   // Commits after the v8.0.32 tag may or may not include the precedence change.
   return describeMatch ? 'unknown' : 'merge';

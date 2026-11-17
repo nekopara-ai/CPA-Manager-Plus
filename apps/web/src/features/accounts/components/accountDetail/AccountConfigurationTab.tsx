@@ -36,8 +36,13 @@ export function AccountConfigurationTab({
   onCopyText,
 }: AccountConfigurationTabProps) {
   const { t } = useTranslation();
+  const serverVersion = useAuthStore((authState) => authState.serverVersion);
+  const serverExcludedModelsPrecedence = useAuthStore(
+    (authState) => authState.serverExcludedModelsPrecedence ?? null
+  );
   const exclusionPriority = getAccountModelExclusionPriority(
-    useAuthStore((authState) => authState.serverVersion)
+    serverVersion,
+    serverExcludedModelsPrecedence
   );
   const reloadButtonId = useId();
   const {

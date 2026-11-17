@@ -169,4 +169,30 @@ describe('ApiClient request scoping', () => {
       buildDate: null,
     });
   });
+
+  it('publishes explicit exclusion precedence and fork capability headers', () => {
+    const currentConfig = applyRequestInterceptor({
+      url: '/config',
+      headers: {},
+    });
+
+    applyResponseSuccessInterceptor({
+      config: currentConfig,
+      headers: {
+        'x-cpa-version': 'dev',
+        'x-cpa-excluded-models-precedence': 'override',
+        'x-cpa-fork': 'nekopara',
+      },
+    });
+
+    expect(dispatchEvent).toHaveBeenCalledTimes(2);
+    expect((dispatchEvent.mock.calls[0]?.[0] as CustomEvent).type).toBe('server-version-update');
+    expect((dispatchEvent.mock.calls[1]?.[0] as CustomEvent).type).toBe(
+      'server-capabilities-update'
+    );
+    expect((dispatchEvent.mock.calls[1]?.[0] as CustomEvent).detail).toEqual({
+      excludedModelsPrecedence: 'override',
+      serverFork: 'nekopara',
+    });
+  });
 });

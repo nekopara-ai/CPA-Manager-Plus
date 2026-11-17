@@ -31,17 +31,30 @@ describe('accountModelRules', () => {
     ['8.0.50-nekopara.303', 'override'],
     [' v8.0.50-nekopara.303 ', 'override'],
     ['v8.0.33-nekopara.260', 'override'],
+    ['8.0.57-dsh-prompt-candidate', 'override'],
+    ['v8.0.57-nekopara.320+hotfix.1', 'override'],
+    ['v8.0.50-nekopara.303-dev', 'override'],
+    ['v8.0.50-other.303', 'override'],
+    ['v8.0.40-dev', 'override'],
     ['v8.0.32-nekopara.259', 'unknown'],
     ['v8.0.31-nekopara.258', 'unknown'],
-    ['v8.0.50-other.303', 'unknown'],
-    ['v8.0.50-nekopara.303-dev', 'unknown'],
     ['v8.0.50-nekopara.0', 'unknown'],
     ['v8.0.50-nekopara.', 'unknown'],
+    ['v7.3.3-custom', 'unknown'],
+    ['dev', 'unknown'],
+    ['custom', 'unknown'],
     ['v7.1.18-demo', 'merge'],
-    ['v8.0.40-dev', 'unknown'],
     [null, 'unknown'],
   ] as const)('maps CPA %s to %s exclusion precedence', (version, expected) => {
     expect(getAccountModelExclusionPriority(version)).toBe(expected);
+  });
+
+  it('honors explicit server capability header even when version is dev or custom', () => {
+    expect(getAccountModelExclusionPriority('dev', 'override')).toBe('override');
+    expect(getAccountModelExclusionPriority('custom', ' OVERRIDE ')).toBe('override');
+    expect(getAccountModelExclusionPriority('dev', 'merge')).toBe('merge');
+    expect(getAccountModelExclusionPriority(null, 'override')).toBe('override');
+    expect(getAccountModelExclusionPriority('dev', 'invalid')).toBe('unknown');
   });
 
   it('shows effective exclusions instead of inactive global matches for newer CPA', () => {
