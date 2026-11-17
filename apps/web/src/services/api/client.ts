@@ -8,6 +8,8 @@ import type { ApiClientConfig, ApiError } from '@/types';
 import {
   BUILD_DATE_HEADER_KEYS,
   COMMIT_HEADER_KEYS,
+  CPA_EXCLUDED_MODELS_PRECEDENCE_HEADER_KEYS,
+  CPA_FORK_HEADER_KEYS,
   CPA_SUPPORT_PLUGIN_HEADER_KEYS,
   REQUEST_TIMEOUT_MS,
   VERSION_HEADER_KEYS,
@@ -119,6 +121,18 @@ class ApiClient {
     return null;
   }
 
+  private readExcludedModelsPrecedenceHeader(
+    headers: Record<string, unknown> | undefined
+  ): 'merge' | 'override' | null {
+    const value = this.readHeader(headers, CPA_EXCLUDED_MODELS_PRECEDENCE_HEADER_KEYS);
+    if (value === null) return null;
+    const normalized = value.trim().toLowerCase();
+    if (normalized === 'override' || normalized === 'merge') {
+      return normalized;
+    }
+    return null;
+  }
+
   private requestTargetsCurrentConfig(config?: AxiosRequestConfig): boolean {
     const requestBase = String(config?.baseURL ?? '').replace(/\/+$/, '');
     const requestAuthorization = this.readHeader(
@@ -169,6 +183,9 @@ class ApiClient {
         const commit = this.readHeader(headers, COMMIT_HEADER_KEYS);
         const buildDate = this.readHeader(headers, BUILD_DATE_HEADER_KEYS);
         const supportsPlugin = this.readBooleanHeader(headers, CPA_SUPPORT_PLUGIN_HEADER_KEYS);
+        const excludedModelsPrecedence = this.readExcludedModelsPrecedenceHeader(headers);
+        const serverForkRaw = this.readHeader(headers, CPA_FORK_HEADER_KEYS);
+        const serverFork = serverForkRaw?.trim() || null;
         const targetsCurrentConfig = this.requestTargetsCurrentConfig(response.config);
 
         // 触发版本更新事件（后续通过 store 处理）
@@ -187,6 +204,16 @@ class ApiClient {
           window.dispatchEvent(
             new CustomEvent('server-plugin-support-update', {
               detail: { supportsPlugin },
+            })
+          );
+        }
+        if (targetsCurrentConfig && (excludedModelsPrecedence !== null || serverFork !== null)) {
+          window.dispatchEvent(
+            new CustomEvent('server-capabilities-update', {
+              detail: {
+                excludedModelsPrecedence,
+                serverFork,
+              },
             })
           );
         }

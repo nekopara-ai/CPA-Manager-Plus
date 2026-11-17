@@ -112,7 +112,13 @@ export function AccountModelsTab({
 }: AccountModelsTabProps) {
   const { t } = useTranslation();
   const serverVersion = useAuthStore((state) => state.serverVersion);
-  const exclusionPriority = getAccountModelExclusionPriority(serverVersion);
+  const serverExcludedModelsPrecedence = useAuthStore(
+    (state) => state.serverExcludedModelsPrecedence ?? null
+  );
+  const exclusionPriority = getAccountModelExclusionPriority(
+    serverVersion,
+    serverExcludedModelsPrecedence
+  );
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<AccountModelFilter>('all');
   const { state, draft, dirty, canSave, sharedSourceReadOnly, sourceMemberCount } = editor;
@@ -202,9 +208,7 @@ export function AccountModelsTab({
           ? model.ruleModelId.trim().toLowerCase()
           : model.id.trim().toLowerCase();
       return (
-        aliasesByModelId.get(lookupKey) ??
-        aliasesByModelId.get(model.id.trim().toLowerCase()) ??
-        []
+        aliasesByModelId.get(lookupKey) ?? aliasesByModelId.get(model.id.trim().toLowerCase()) ?? []
       );
     },
     [aliasesByModelId]
@@ -340,9 +344,7 @@ export function AccountModelsTab({
         disabled={editingDisabled || !model.ruleModelIdResolved}
         onClick={() => updateExactRule(model, true)}
         title={
-          !model.ruleModelIdResolved
-            ? t('accounts.model_rule_mapping_unavailable')
-            : undefined
+          !model.ruleModelIdResolved ? t('accounts.model_rule_mapping_unavailable') : undefined
         }
       >
         {t('accounts.model_disable_for_credential')}

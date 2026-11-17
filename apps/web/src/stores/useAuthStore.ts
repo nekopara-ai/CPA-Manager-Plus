@@ -42,6 +42,10 @@ interface AuthStoreState extends AuthState {
     commit?: string | null
   ) => void;
   updateServerPluginSupport: (supportsPlugin: boolean) => void;
+  updateServerCapabilities: (capabilities: {
+    excludedModelsPrecedence?: 'merge' | 'override' | null;
+    serverFork?: string | null;
+  }) => void;
   updateConnectionStatus: (status: ConnectionStatus, error?: string | null) => void;
 }
 
@@ -161,6 +165,8 @@ export const useAuthStore = create<AuthStoreState>()(
       serverVersion: null,
       serverCommit: null,
       serverBuildDate: null,
+      serverExcludedModelsPrecedence: null,
+      serverFork: null,
       supportsPlugin: false,
       sessionMode: '',
       sessionPanelBase: '',
@@ -261,9 +267,15 @@ export const useAuthStore = create<AuthStoreState>()(
               console.warn('Auto login failed:', error);
 
               const status =
-                error && typeof error === 'object' && 'status' in error && typeof (error as { status: unknown }).status === 'number'
+                error &&
+                typeof error === 'object' &&
+                'status' in error &&
+                typeof (error as { status: unknown }).status === 'number'
                   ? (error as { status: number }).status
-                  : error && typeof error === 'object' && 'statusCode' in error && typeof (error as { statusCode: unknown }).statusCode === 'number'
+                  : error &&
+                      typeof error === 'object' &&
+                      'statusCode' in error &&
+                      typeof (error as { statusCode: unknown }).statusCode === 'number'
                     ? (error as { statusCode: number }).statusCode
                     : undefined;
 
@@ -321,10 +333,7 @@ export const useAuthStore = create<AuthStoreState>()(
         );
         const quotaCacheScope = sha256Hex(`${apiBase}\u0000${managementKey}`);
 
-        const markAuthenticated = (
-          result: LoginResult = {},
-          onAccepted?: () => void
-        ) => {
+        const markAuthenticated = (result: LoginResult = {}, onAccepted?: () => void) => {
           if (pendingLegacyRestoreInFlight) {
             if (
               pendingLegacyAuthSnapshot &&
@@ -375,6 +384,8 @@ export const useAuthStore = create<AuthStoreState>()(
             serverVersion: null,
             serverCommit: null,
             serverBuildDate: null,
+            serverExcludedModelsPrecedence: null,
+            serverFork: null,
           });
           useModelsStore.getState().clearCache();
 
@@ -392,22 +403,19 @@ export const useAuthStore = create<AuthStoreState>()(
               throw error;
             }
             await usageServiceApi.getManagerConfig(apiBase, managementKey);
-            return markAuthenticated(
-              { recoveryMode: 'manager_config' },
-              () => {
-                useConfigStore.getState().clearCache();
-                useUsageServiceStore.getState().setUsageServiceConfig(
-                  {
-                    enabled: true,
-                    serviceBase: apiBase,
-                  },
-                  {
-                    panelBase: sessionPanelBase || apiBase,
-                    panelHostMode: 'manager_embedded',
-                  }
-                );
-              }
-            );
+            return markAuthenticated({ recoveryMode: 'manager_config' }, () => {
+              useConfigStore.getState().clearCache();
+              useUsageServiceStore.getState().setUsageServiceConfig(
+                {
+                  enabled: true,
+                  serviceBase: apiBase,
+                },
+                {
+                  panelBase: sessionPanelBase || apiBase,
+                  panelHostMode: 'manager_embedded',
+                }
+              );
+            });
           }
 
           // 登录成功
@@ -447,6 +455,8 @@ export const useAuthStore = create<AuthStoreState>()(
           serverVersion: null,
           serverCommit: null,
           serverBuildDate: null,
+          serverExcludedModelsPrecedence: null,
+          serverFork: null,
           supportsPlugin: false,
           sessionMode: '',
           sessionPanelBase: '',
@@ -472,6 +482,8 @@ export const useAuthStore = create<AuthStoreState>()(
             serverVersion: null,
             serverCommit: null,
             serverBuildDate: null,
+            serverExcludedModelsPrecedence: null,
+            serverFork: null,
           });
 
           // 验证连接
@@ -499,11 +511,23 @@ export const useAuthStore = create<AuthStoreState>()(
           serverVersion: version || null,
           serverCommit: commit || null,
           serverBuildDate: buildDate || null,
+          serverExcludedModelsPrecedence: null,
+          serverFork: null,
         });
       },
 
       updateServerPluginSupport: (supportsPlugin) => {
         set({ supportsPlugin });
+      },
+
+      updateServerCapabilities: ({ excludedModelsPrecedence, serverFork }) => {
+        set((state) => ({
+          serverExcludedModelsPrecedence:
+            excludedModelsPrecedence !== undefined
+              ? excludedModelsPrecedence
+              : (state.serverExcludedModelsPrecedence ?? null),
+          serverFork: serverFork !== undefined ? serverFork : (state.serverFork ?? null),
+        }));
       },
 
       // 更新连接状态
@@ -542,7 +566,10 @@ export const useAuthStore = create<AuthStoreState>()(
         ...(state.rememberPassword ? { managementKey: state.managementKey } : {}),
         rememberPassword: state.rememberPassword,
         serverVersion: state.serverVersion,
+        serverCommit: state.serverCommit,
         serverBuildDate: state.serverBuildDate,
+        serverExcludedModelsPrecedence: state.serverExcludedModelsPrecedence ?? null,
+        serverFork: state.serverFork ?? null,
         sessionMode: state.sessionMode,
         sessionPanelBase: state.sessionPanelBase,
       }),
@@ -573,5 +600,17 @@ if (typeof window !== 'undefined' && typeof window.addEventListener === 'functio
 
   window.addEventListener('server-plugin-support-update', ((e: CustomEvent) => {
     useAuthStore.getState().updateServerPluginSupport(e.detail?.supportsPlugin === true);
+  }) as EventListener);
+
+  window.addEventListener('server-capabilities-update', ((e: CustomEvent) => {
+    const detail = e.detail || {};
+    useAuthStore.getState().updateServerCapabilities({
+      excludedModelsPrecedence:
+        detail.excludedModelsPrecedence === 'override' ||
+        detail.excludedModelsPrecedence === 'merge'
+          ? detail.excludedModelsPrecedence
+          : null,
+      serverFork: typeof detail.serverFork === 'string' ? detail.serverFork : null,
+    });
   }) as EventListener);
 }

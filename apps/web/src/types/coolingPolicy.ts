@@ -12,6 +12,8 @@ const LAST_KNOWN_LEGACY_CPA_VERSION = [7, 2, 92] as const;
 const COOLING_OVERRIDE_REFACTOR_DISTANCE = 368;
 const CPA_RELEASE_VERSION_PATTERN = /^v?(\d+)\.(\d+)\.(\d+)(?:-(?:alpha|beta|rc)(?:[.-]?\d+)?)?$/i;
 const CPA_GIT_DESCRIBE_VERSION_PATTERN = /^v?(\d+)\.(\d+)\.(\d+)-(\d+)-g([0-9a-f]+)(?:-dirty)?$/i;
+const CPA_POST_REFACTOR_SEMVER_PATTERN =
+  /^v?(\d+)\.(\d+)\.(\d+)(?:-([0-9a-z]+(?:[.-][0-9a-z]+)*))?(?:\+([0-9a-z]+(?:[.-][0-9a-z]+)*))?$/i;
 
 const compareVersion = (current: readonly number[], baseline: readonly number[]) => {
   for (let index = 0; index < baseline.length; index += 1) {
@@ -37,8 +39,10 @@ const isCoolingRefactorCommit = (serverCommit?: string | null) => {
  */
 export const getCoolingOverrideCompatibility = (
   serverVersion?: string | null,
-  serverCommit?: string | null
+  serverCommit?: string | null,
+  serverFork?: string | null
 ): CoolingOverrideCompatibility => {
+  if (serverFork?.trim().toLowerCase() === 'nekopara') return 'supported';
   if (isCoolingRefactorCommit(serverCommit)) return 'supported';
 
   const normalizedVersion = serverVersion?.trim() ?? '';
@@ -53,9 +57,17 @@ export const getCoolingOverrideCompatibility = (
   }
 
   const match = normalizedVersion.match(CPA_RELEASE_VERSION_PATTERN);
-  if (!match) return 'unverified';
-  const current = match.slice(1, 4).map((segment) => Number.parseInt(segment, 10));
-  return compareVersion(current, LAST_KNOWN_LEGACY_CPA_VERSION) <= 0 ? 'legacy' : 'supported';
+  if (match) {
+    const current = match.slice(1, 4).map((segment) => Number.parseInt(segment, 10));
+    return compareVersion(current, LAST_KNOWN_LEGACY_CPA_VERSION) <= 0 ? 'legacy' : 'supported';
+  }
+
+  const extendedMatch = normalizedVersion.match(CPA_POST_REFACTOR_SEMVER_PATTERN);
+  if (!extendedMatch) return 'unverified';
+  const extendedVersion = extendedMatch.slice(1, 4).map((segment) => Number.parseInt(segment, 10));
+  return compareVersion(extendedVersion, LAST_KNOWN_LEGACY_CPA_VERSION) > 0
+    ? 'supported'
+    : 'unverified';
 };
 
 /**

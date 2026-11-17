@@ -29,7 +29,8 @@ export function CoolingPolicySelect({
   const { t } = useTranslation();
   const serverVersion = useAuthStore((state) => state.serverVersion);
   const serverCommit = useAuthStore((state) => state.serverCommit);
-  const compatibility = getCoolingOverrideCompatibility(serverVersion, serverCommit);
+  const serverFork = useAuthStore((state) => state.serverFork ?? null);
+  const compatibility = getCoolingOverrideCompatibility(serverVersion, serverCommit, serverFork);
   const supportsThreeState = compatibility === 'supported';
   const isLegacy = compatibility === 'legacy';
   const providerBlocked = !supportsThreeState && !legacyProviderSupported;
